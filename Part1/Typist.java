@@ -1,38 +1,36 @@
 /**
- * Write a description of class Typist here.
+ * The Class Typist is the class that defines one of the members of the competition, a Typist as the name entails,
+ * this class gives the 6 variables that all typists have and the methods needed to access these values.  
  *
  * Starter code generously abandoned by Ty Posaurus, your predecessor,
  * who typed with two fingers and considered that "good enough".
  * He left a sticky note: "the slide-back thing is optional probably".
  * It is not optional. Good luck.
  *
- * @author (your name)
- * @version (a version number or a date)
+ * @author Andrei Dodu
+ * @version 1.0
  */
 public class Typist
 {
-    // Fields of class Typist
-    // Hint: you will need six fields. Think carefully about their types.
-    // One of them tracks how far along the passage the typist has reached.
-    // Another tracks whether the typist is currently burnt out.
-    // A third tracks HOW MANY turns of burnout remain (not just whether they are burnt out).
-    // The remaining three should be fairly obvious.
-
+    private String name;  // Name of the Typist
+    private char symbol; // Symbol that represents typist in the race
+    private int progress; // Progress in the typist
+    private boolean burnOut; // Y/N if typist is burnt out 
+    private int burnoutTurnsRemaining; // For how long the typist is gonna be burnt out/ remaining
+    private double accuracy; // accuracy of typist
 
 
 
     // Constructor of class Typist
-    /**
-     * Constructor for objects of class Typist.
-     * Creates a new typist with a given symbol, name, and accuracy rating.
-     *
-     * @param typistSymbol  a single Unicode character representing this typist (e.g. '①', '②', '③')
-     * @param typistName    the name of the typist (e.g. "TURBOFINGERS")
-     * @param typistAccuracy the typist's accuracy rating, between 0.0 and 1.0
-     */
     public Typist(char typistSymbol, String typistName, double typistAccuracy)
     {
+        name = typistName;
+        progress = 0;
+        burnOut = false;
+        burnoutTurnsRemaining = 0;
 
+        setSymbol(typistSymbol);
+        setAccuracy(typistAccuracy);
     }
 
 
@@ -46,7 +44,8 @@ public class Typist
      */
     public void burnOut(int turns)
     {
-
+        burnOut = true;
+        burnoutTurnsRemaining = turns;
     }
 
     /**
@@ -56,7 +55,11 @@ public class Typist
      */
     public void recoverFromBurnout()
     {
-
+        if (getBurnoutTurnsRemaining() == 0) {
+            burnOut = false;
+        }else {
+            burnoutTurnsRemaining -= 1; 
+        }
     }
 
     /**
@@ -66,7 +69,7 @@ public class Typist
      */
     public double getAccuracy()
     {
-        return 0.0; // placeholder - replace with correct implementation
+        return accuracy;
     }
 
     /**
@@ -78,7 +81,7 @@ public class Typist
      */
     public int getProgress()
     {
-        return 0; // placeholder - replace with correct implementation
+        return progress; 
     }
 
     /**
@@ -88,7 +91,7 @@ public class Typist
      */
     public String getName()
     {
-        return ""; // placeholder - replace with correct implementation
+        return name; 
     }
 
     /**
@@ -98,7 +101,7 @@ public class Typist
      */
     public char getSymbol()
     {
-        return ' '; // placeholder - replace with correct implementation
+        return symbol;
     }
 
     /**
@@ -109,7 +112,7 @@ public class Typist
      */
     public int getBurnoutTurnsRemaining()
     {
-        return 0; // placeholder - replace with correct implementation
+        return burnoutTurnsRemaining;
     }
 
     /**
@@ -118,6 +121,9 @@ public class Typist
      */
     public void resetToStart()
     {
+        progress = 0;
+        burnoutTurnsRemaining = 0;
+        burnOut = false;
 
     }
 
@@ -128,7 +134,7 @@ public class Typist
      */
     public boolean isBurntOut()
     {
-        return false; // placeholder - replace with correct implementation
+        return burnOut;
     }
 
     /**
@@ -137,7 +143,7 @@ public class Typist
      */
     public void typeCharacter()
     {
-
+        progress++;
     }
 
     /**
@@ -148,7 +154,13 @@ public class Typist
      */
     public void slideBack(int amount)
     {
-
+        if (amount > 0) {
+            if (progress - amount < 0 ) {
+                progress = 0;
+            }else {
+                progress = progress - amount;
+            }
+        }
     }
 
     /**
@@ -159,7 +171,13 @@ public class Typist
      */
     public void setAccuracy(double newAccuracy)
     {
+        if(newAccuracy < 0.0) {
+            newAccuracy = 0.0;
+        }else if (newAccuracy > 1.0) {
+            newAccuracy = 1.0;
+        }
 
+        accuracy = newAccuracy;
     }
 
     /**
@@ -169,7 +187,7 @@ public class Typist
      */
     public void setSymbol(char newSymbol)
     {
-
+        symbol = newSymbol;
     }
 
 }
