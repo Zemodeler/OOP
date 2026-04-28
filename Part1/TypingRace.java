@@ -9,8 +9,8 @@ import java.lang.Math;
  * two-finger technique". He assured us the code was "basically done".
  * We have found evidence to the contrary.
  *
- * @author TyPosaurus
- * @version 0.7 (the other 0.3 is left as an exercise for the reader)
+ * @author TyPosaurus && Andrei Dodu
+ * @version 0.8 
  */
 public class TypingRace
 {
@@ -70,18 +70,15 @@ public class TypingRace
      * Starts the typing race.
      * All typists are reset to the beginning, then the simulation runs
      * turn by turn until one typist completes the full passage.
-     *
-     * Note from Ty: "I didn't bother printing the winner at the end,
-     * you can probably figure that out yourself."
      */
     public void startRace()
     {
         boolean finished = false;
+        Typist winner = null;
 
-        // Reset all typists to the start of the passage
-        // (Ty was in a hurry here)
         seat1Typist.resetToStart();
         seat2Typist.resetToStart();
+        seat3Typist.resetToStart();
 
         while (!finished)
         {
@@ -94,9 +91,15 @@ public class TypingRace
             printRace();
 
             // Check if any typist has finished the passage
-            if ( raceFinishedBy(seat1Typist) || raceFinishedBy(seat2Typist) || raceFinishedBy(seat3Typist) )
-            {
+            if ( raceFinishedBy(seat1Typist)) {
                 finished = true;
+                winner = seat1Typist;
+            }else if( raceFinishedBy(seat2Typist)) {
+                finished = true;
+                winner = seat2Typist;
+            }else if (raceFinishedBy(seat3Typist)) {
+                finished = true;
+                winner = seat3Typist;
             }
 
             // Wait 200ms between turns so the animation is visible
@@ -105,7 +108,13 @@ public class TypingRace
             } catch (Exception e) {}
         }
 
-        // TODO (Task 2a): Print the winner's name here
+        double OldAccuracy = winner.getAccuracy();
+        winner.setAccuracy(OldAccuracy+0.02); // As Shown in the image of the simulation, 0.02 improvement.
+
+        System.out.println();
+        System.out.println("And the winner is... " + winner.getName() + "!");
+        System.out.println("Final accuracy: " + winner.getAccuracy() + " improved from " + OldAccuracy);
+
     }
 
     /**
