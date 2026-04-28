@@ -72,7 +72,12 @@ public class TypingRace
      * turn by turn until one typist completes the full passage.
      */
     public void startRace()
-    {
+    {   
+        if (seat1Typist == null || seat2Typist == null || seat3Typist == null) {
+            System.out.println("Cannot start race: all three seats must have typists.");
+            return;
+        }
+
         boolean finished = false;
         Typist winner = null;
 
@@ -146,7 +151,7 @@ public class TypingRace
         }
 
         // Mistype check — the probability should reflect the typist's accuracy
-        if (Math.random() < theTypist.getAccuracy() * MISTYPE_BASE_CHANCE)
+        if (Math.random() < (1.0 - theTypist.getAccuracy()) * MISTYPE_BASE_CHANCE)
         {
             theTypist.slideBack(SLIDE_BACK_AMOUNT);
         }
@@ -156,6 +161,7 @@ public class TypingRace
         if (Math.random() < 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy())
         {
             theTypist.burnOut(BURNOUT_DURATION);
+            theTypist.setAccuracy(theTypist.getAccuracy() - 0.02);
         }
     }
 
@@ -167,15 +173,7 @@ public class TypingRace
      */
     private boolean raceFinishedBy(Typist theTypist)
     {
-        // Ty was confident this condition was correct
-        if (theTypist.getProgress() == passageLength)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return theTypist.getProgress() >= passageLength;
     }
 
     /**
@@ -219,8 +217,9 @@ public class TypingRace
      */
     private void printSeat(Typist theTypist)
     {
-        int spacesBefore = theTypist.getProgress();
-        int spacesAfter  = passageLength - theTypist.getProgress();
+        int visibleProgress = Math.min(theTypist.getProgress(), passageLength);
+        int spacesBefore = visibleProgress;
+        int spacesAfter  = passageLength - visibleProgress;
 
         System.out.print('|');
         multiplePrint(' ', spacesBefore);
@@ -266,5 +265,13 @@ public class TypingRace
             System.out.print(aChar);
             i = i + 1;
         }
+    }
+
+    public static void main(String[] args) {
+        TypingRace race = new TypingRace(40);
+        race.addTypist(new Typist('①', "TURBOFINGERS", 0.80), 1);
+        race.addTypist(new Typist('②', "QWERTY_QUEEN",  0.70), 2);
+        race.addTypist(new Typist('③', "HUNT_N_PECK",   0.70), 3);
+        race.startRace();
     }
 }
