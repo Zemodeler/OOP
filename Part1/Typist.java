@@ -28,8 +28,8 @@ public class Typist
         progress = 0;
         burnOut = false;
         burnoutTurnsRemaining = 0;
-
-        setSymbol(typistSymbol);
+        symbol = typistSymbol;
+        
         setAccuracy(typistAccuracy);
     }
 
