@@ -177,7 +177,7 @@ public class Typist
             newAccuracy = 1.0;
         }
 
-        accuracy = newAccuracy;
+        accuracy = Math.round(newAccuracy * 100.0) / 100.0;
     }
 
     /**
