@@ -1,6 +1,6 @@
 /**
  * Description: 
- * GUI Part of Typing Races, creates a GUI configuration screen that allows the user the configure the difficulty
+ * GUI Part of Typing Races, creates a GUI configuration screen that allows the user to configure the difficulty
  * and different aspects of the typing race.
  *
  * @author Andrei Dodu
@@ -8,6 +8,7 @@
  */
 
 package Part2;
+
 import javax.swing.*;
 import java.awt.*;
 
@@ -27,6 +28,42 @@ public class TypingRaceGUI {
     private final String MEDIUM_PASSAGE = "Object oriented programming helps programmers organise code into reusable classes and objects.";
     private final String LONG_PASSAGE = "In a typing race, competitors race to type through a passage as quickly and accurately as possible. This passage is the longest preset available, making for a very long race";
 
+    private String selectedPassage;
+    private int selectedSeatCount;
+    private boolean selectedAutocorrect;
+    private boolean selectedCaffeineMode;
+    private boolean selectedNightShift;
+
+    private JPanel typistDesignPanel;
+
+    private JComboBox<String>[] typingStyleComboBoxes;
+    private JComboBox<String>[] keyboardTypeComboBoxes;
+    private JTextField[] symbolFields;
+    private JButton[] colourButtons;
+    private JComboBox<String>[] accessoryComboBoxes;
+    private Color[] selectedColours;
+
+    private final String[] TYPING_STYLES = {
+        "Touch Typist",
+        "Hunt & Peck",
+        "Phone Thumbs",
+        "Voice-to-Text"
+    };
+
+    private final String[] KEYBOARD_TYPES = {
+        "Mechanical",
+        "Membrane",
+        "Touchscreen",
+        "Stenography"
+    };
+
+    private final String[] ACCESSORIES = {
+        "None",
+        "Wrist Support",
+        "Energy Drink",
+        "Noise-Cancelling Headphones"
+    };
+
     public void startRaceGUI() {
         frame = new JFrame("Typing Race Simulator");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -43,10 +80,10 @@ public class TypingRaceGUI {
 
         JLabel titleLabel = new JLabel("Race Configuration");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
-        titleLabel.setAlignmentX(JLabel.CENTER);
+        titleLabel.setHorizontalAlignment(JLabel.CENTER);
 
         JButton previewButton = new JButton("Preview Configuration");
-        JButton startButton = new JButton("Start Race");
+        JButton startButton = new JButton("Design Racers");
 
         autocorrectCheckBox = new JCheckBox("Autocorrect: slide-back amount is halved");
         caffeineModeCheckBox = new JCheckBox("Caffeine Mode: speed boost for first 10 turns, then higher burnout risk");
@@ -79,10 +116,9 @@ public class TypingRaceGUI {
         passageComboBox.addActionListener(e -> {
             String selected = (String) passageComboBox.getSelectedItem();
 
-            if (selected.equals("Custom Passage")){
+            if (selected.equals("Custom Passage")) {
                 customPassageArea.setEnabled(true);
-            }
-            else{
+            } else {
                 customPassageArea.setEnabled(false);
             }
 
@@ -93,23 +129,25 @@ public class TypingRaceGUI {
         caffeineModeCheckBox.addActionListener(e -> updateConfigurationPreview());
         nightShiftCheckBox.addActionListener(e -> updateConfigurationPreview());
 
+        seatCountComboBox.addActionListener(e -> updateConfigurationPreview());
+
+        previewButton.addActionListener(e -> updateConfigurationPreview());
+        startButton.addActionListener(e -> goToTypistDesignScreen());
+
         formPanel.add(new JLabel("Choose difficulty modifiers"));
         formPanel.add(autocorrectCheckBox);
         formPanel.add(caffeineModeCheckBox);
         formPanel.add(nightShiftCheckBox);
 
-        seatCountComboBox.addActionListener(e -> updateConfigurationPreview());
-
         formPanel.add(new JLabel("Choose number of typists"));
         formPanel.add(seatCountComboBox);
 
-        previewButton.addActionListener(e -> updateConfigurationPreview());
-        startButton.addActionListener(e -> startConfiguredRace());
-
         formPanel.add(new JLabel("Choose a passage:"));
         formPanel.add(passageComboBox);
+
         formPanel.add(new JLabel("Custom passage:"));
         formPanel.add(new JScrollPane(customPassageArea));
+
         formPanel.add(previewButton);
         formPanel.add(startButton);
 
@@ -129,39 +167,30 @@ public class TypingRaceGUI {
 
         if (selected.equals("Short Passage")) {
             return SHORT_PASSAGE;
-        }else if (selected.equals("Medium Passage")){
+        } else if (selected.equals("Medium Passage")) {
             return MEDIUM_PASSAGE;
-        }else if (selected.equals("Long Passage")){
+        } else if (selected.equals("Long Passage")) {
             return LONG_PASSAGE;
-        }else {
+        } else {
             return customPassageArea.getText();
         }
     }
 
-    private void startConfiguredRace() {
+    private void goToTypistDesignScreen() {
         String passage = getSelectedPassage();
 
-        if (passage.trim().isEmpty())
-        {
-            JOptionPane.showMessageDialog(frame, "Please enter a valid passage before starting the race.");
+        if (passage.trim().isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "Please enter a valid passage before continuing.");
             return;
         }
 
-        int seatCount = (int) seatCountComboBox.getSelectedItem();
+        selectedPassage = passage;
+        selectedSeatCount = (int) seatCountComboBox.getSelectedItem();
+        selectedAutocorrect = autocorrectCheckBox.isSelected();
+        selectedCaffeineMode = caffeineModeCheckBox.isSelected();
+        selectedNightShift = nightShiftCheckBox.isSelected();
 
-        boolean autocorrect = autocorrectCheckBox.isSelected();
-        boolean caffeineMode = caffeineModeCheckBox.isSelected();
-        boolean nightShift = nightShiftCheckBox.isSelected();
-
-        outputArea.setText("");
-
-        outputArea.append("Race configuration accepted.\n\n");
-
-        outputArea.append("Passage length: " + passage.length() + " characters\n");
-        outputArea.append("Number of typists: " + seatCount + "\n");
-        outputArea.append("Autocorrect: " + autocorrect + "\n");
-        outputArea.append("Caffeine Mode: " + caffeineMode + "\n");
-        outputArea.append("Night Shift: " + nightShift + "\n\n");
+        createTypistDesignScreen();
     }
 
     private void updateConfigurationPreview() {
@@ -175,29 +204,61 @@ public class TypingRaceGUI {
         outputArea.append("Number of typists: " + seatCount + "\n");
 
         outputArea.append("Difficulty modifiers:\n");
-        if (autocorrectCheckBox.isSelected()){
+
+        if (autocorrectCheckBox.isSelected()) {
             outputArea.append("- Autocorrect enabled: slide-back amount will be halved.\n");
-        }else{
+        } else {
             outputArea.append("- Autocorrect disabled.\n");
         }
 
-        if (caffeineModeCheckBox.isSelected()){
+        if (caffeineModeCheckBox.isSelected()) {
             outputArea.append("- Caffeine Mode enabled: typists get a first-10-turn boost, then higher burnout risk.\n");
-        }else{
+        } else {
             outputArea.append("- Caffeine Mode disabled.\n");
         }
 
-        if (nightShiftCheckBox.isSelected()){
+        if (nightShiftCheckBox.isSelected()) {
             outputArea.append("- Night Shift enabled: typist accuracy will be reduced.\n");
-        }else{
+        } else {
             outputArea.append("- Night Shift disabled.\n");
         }
     }
 
-    public static void main(String[] args)
-    {
+    private void createTypistDesignScreen() {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
+        JLabel titleLabel = new JLabel("Design Your Typists");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        titleLabel.setHorizontalAlignment(JLabel.CENTER);
+
+        JTextArea summaryArea = new JTextArea(10, 50);
+        summaryArea.setEditable(false);
+        summaryArea.setLineWrap(true);
+        summaryArea.setWrapStyleWord(true);
+
+        summaryArea.append("This is the typist design screen.\n\n");
+        summaryArea.append("Saved race configuration:\n");
+        summaryArea.append("Passage length: " + selectedPassage.length() + " characters\n");
+        summaryArea.append("Number of typists: " + selectedSeatCount + "\n");
+        summaryArea.append("Autocorrect: " + selectedAutocorrect + "\n");
+        summaryArea.append("Caffeine Mode: " + selectedCaffeineMode + "\n");
+        summaryArea.append("Night Shift: " + selectedNightShift + "\n\n");
+        summaryArea.append("Next step: add controls for typing style, keyboard type, symbol, colour, and accessories.");
+
+        JButton backButton = new JButton("Back to Race Configuration");
+        backButton.addActionListener(e -> createConfigurationScreen());
+
+        mainPanel.add(titleLabel, BorderLayout.NORTH);
+        mainPanel.add(new JScrollPane(summaryArea), BorderLayout.CENTER);
+        mainPanel.add(backButton, BorderLayout.SOUTH);
+
+        frame.setContentPane(mainPanel);
+        frame.revalidate();
+        frame.repaint();
+    }
+
+    public static void main(String[] args) {
         TypingRaceGUI gui = new TypingRaceGUI();
         gui.startRaceGUI();
     }
-
 }
