@@ -34,6 +34,8 @@ public class Typist
     private int burnoutCount;
     private double startingAccuracy;
 
+    private static final double ACCURACY     = 0.7;
+
     // Constructor of class Typist
     public Typist(String typistSymbol, String typistName, double typistAccuracy, Color typistColor, double typistSpeedBoost, double typistmystype, double typistburnout, int burnoutDuration, boolean energyDrink)
     {
@@ -49,11 +51,11 @@ public class Typist
         this.burnOut = false;
         this.burnoutTurnsRemaining = 0;
 
-        startingAccuracy = getAccuracy();
         correctKeystrokes = 0;
         mistypeCount = 0;
         burnoutCount = 0;
 
+        SetStartingAccuracy(ACCURACY);
         setSymbol(typistSymbol);
         setAccuracy(typistAccuracy);
     }
@@ -264,6 +266,10 @@ public class Typist
 
     public void recordBurnout() {
         burnoutCount++;
+    }
+
+    public void SetStartingAccuracy(double value) {
+        startingAccuracy = value;
     }
 
 }

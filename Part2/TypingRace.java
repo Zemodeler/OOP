@@ -73,7 +73,6 @@ public class TypingRace
         int burnoutDuration =  burnoutDurationMod;
         double typistBurnout = typistBurnoutMod;
         
-
         typists[seatCount-1] = new Typist(symbol, name, accuracy, color, typistSpeed, typistMistype, typistBurnout, burnoutDuration, energyDrink);
     }
 
