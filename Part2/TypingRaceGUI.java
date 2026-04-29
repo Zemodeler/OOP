@@ -227,32 +227,106 @@ public class TypingRaceGUI {
     private void createTypistDesignScreen() {
         JPanel mainPanel = new JPanel(new BorderLayout());
 
-        JLabel titleLabel = new JLabel("Design Your Typists");
+        JLabel titleLabel = new JLabel("Design Your Typists - Typing Style");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
         titleLabel.setHorizontalAlignment(JLabel.CENTER);
 
-        JTextArea summaryArea = new JTextArea(10, 50);
+        JTextArea summaryArea = new JTextArea(7, 50);
         summaryArea.setEditable(false);
         summaryArea.setLineWrap(true);
         summaryArea.setWrapStyleWord(true);
 
-        summaryArea.append("This is the typist design screen.\n\n");
         summaryArea.append("Saved race configuration:\n");
         summaryArea.append("Passage length: " + selectedPassage.length() + " characters\n");
         summaryArea.append("Number of typists: " + selectedSeatCount + "\n");
         summaryArea.append("Autocorrect: " + selectedAutocorrect + "\n");
         summaryArea.append("Caffeine Mode: " + selectedCaffeineMode + "\n");
         summaryArea.append("Night Shift: " + selectedNightShift + "\n\n");
-        summaryArea.append("Next step: add controls for typing style, keyboard type, symbol, colour, and accessories.");
+        summaryArea.append("Question 10: Choose a typing style for each typist.");
+
+        typistDesignPanel = new JPanel(new GridLayout(0, 1, 8, 8));
+        buildTypingStyleControls();
 
         JButton backButton = new JButton("Back to Race Configuration");
         backButton.addActionListener(e -> createConfigurationScreen());
 
+        JButton startRaceButton = new JButton("Start Race");
+        startRaceButton.addActionListener(e -> startRaceFromTypingStyles());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.add(backButton);
+        buttonPanel.add(startRaceButton);
+
+        JPanel centrePanel = new JPanel(new BorderLayout());
+        centrePanel.add(new JScrollPane(summaryArea), BorderLayout.NORTH);
+        centrePanel.add(new JScrollPane(typistDesignPanel), BorderLayout.CENTER);
+
         mainPanel.add(titleLabel, BorderLayout.NORTH);
-        mainPanel.add(new JScrollPane(summaryArea), BorderLayout.CENTER);
-        mainPanel.add(backButton, BorderLayout.SOUTH);
+        mainPanel.add(centrePanel, BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
 
         frame.setContentPane(mainPanel);
+        frame.revalidate();
+        frame.repaint();
+    }
+
+    private void buildTypingStyleControls() {
+        typingStyleComboBoxes = new JComboBox[selectedSeatCount];
+
+        typistDesignPanel.removeAll();
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            JPanel singleTypistPanel = new JPanel(new GridLayout(0, 2, 5, 5));
+            singleTypistPanel.setBorder(BorderFactory.createTitledBorder("Typist " + (i + 1)));
+
+            typingStyleComboBoxes[i] = new JComboBox<>(TYPING_STYLES);
+
+            singleTypistPanel.add(new JLabel("Typing Style:"));
+            singleTypistPanel.add(typingStyleComboBoxes[i]);
+
+            typistDesignPanel.add(singleTypistPanel);
+        }
+
+        typistDesignPanel.revalidate();
+        typistDesignPanel.repaint();
+    }
+
+    private void startRaceFromTypingStyles() {
+        JPanel racePanel = new JPanel(new BorderLayout());
+
+        JLabel titleLabel = new JLabel("Race Started");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        titleLabel.setHorizontalAlignment(JLabel.CENTER);
+
+        JTextArea raceOutputArea = new JTextArea(20, 60);
+        raceOutputArea.setEditable(false);
+        raceOutputArea.setLineWrap(true);
+        raceOutputArea.setWrapStyleWord(true);
+
+        raceOutputArea.append("Race started with the following configuration:\n\n");
+
+        raceOutputArea.append("Passage length: " + selectedPassage.length() + " characters\n");
+        raceOutputArea.append("Number of typists: " + selectedSeatCount + "\n");
+        raceOutputArea.append("Autocorrect: " + selectedAutocorrect + "\n");
+        raceOutputArea.append("Caffeine Mode: " + selectedCaffeineMode + "\n");
+        raceOutputArea.append("Night Shift: " + selectedNightShift + "\n\n");
+
+        raceOutputArea.append("Question 10 - Typing Styles:\n");
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            raceOutputArea.append("Typist " + (i + 1) + ": ");
+            raceOutputArea.append((String) typingStyleComboBoxes[i].getSelectedItem());
+            raceOutputArea.append("\n");
+        }
+
+        JButton backButton = new JButton("Back to Typist Design");
+        backButton.addActionListener(e -> createTypistDesignScreen());
+
+        racePanel.add(titleLabel, BorderLayout.NORTH);
+        racePanel.add(new JScrollPane(raceOutputArea), BorderLayout.CENTER);
+        racePanel.add(backButton, BorderLayout.SOUTH);
+
+        frame.setContentPane(racePanel);
         frame.revalidate();
         frame.repaint();
     }
