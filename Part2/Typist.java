@@ -25,6 +25,9 @@ public class Typist
     private int burnoutDurationModifier;
     private double extraTyping = 0.0;
 
+    private boolean caffeineFlag = false;
+    private boolean energyFlag = false;
+
     
 
     // Constructor of class Typist
@@ -72,6 +75,8 @@ public class Typist
         }
     }
 
+    // getters
+
     public double getAccuracy()
     {
         return accuracy;
@@ -116,6 +121,16 @@ public class Typist
     public int getBurnoutDurationAdjustment() {
         return burnoutDurationModifier;
     }
+
+    public boolean getCaffeineFlag() {
+        return caffeineFlag;
+    }
+
+    public boolean getEnergyFlag() {
+        return energyFlag;
+    }
+
+    // setters
 
     public void setSymbol(String symbol) {
         if (symbol == null || symbol.trim().isEmpty()) {
@@ -179,6 +194,14 @@ public class Typist
         }
 
         accuracy = Math.round(newAccuracy * 100.0) / 100.0;
+    }
+
+    public void setCaffeineFlag(boolean value) {
+        caffeineFlag = value;
+    }
+
+    public void setEnergyFlag(boolean value) {
+        energyFlag = value;
     }
 
 }

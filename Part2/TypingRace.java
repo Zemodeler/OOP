@@ -20,22 +20,20 @@ public class TypingRace
     private boolean energyDrink;
     
 
-    private static final double MISTYPE_BASE_CHANCE = 0.3;
+    private static final double MISTYPE_BASE_CHANCE = 0.2;
     private static final int    SLIDE_BACK_AMOUNT_ORIGINAL   = 2;
     private static final int    BURNOUT_DURATION     = 3;
     private static final double ACCURACY     = 0.7;
     private static final double SPEED = 1.0; 
     private static final double CAFFEINE_BOOST = 0.2;
-    private static final double CAFFEINE_BURNOUT = 0.2;
+    private static final double CAFFEINE_BURNOUT = 0.05;
     private static final double ENERGY_BOOST = 0.2;
     
     private boolean finished;
     private Typist winner;
-    private boolean caffeineFlag = false;
-    private boolean energyFlag = false;
     private double winnerAccuracyBeforeBonus;
     private int turnNumber = 0;
-    private int raceLength = passage.length();
+    private int raceLength;
     
 
     /**
@@ -48,6 +46,7 @@ public class TypingRace
     public TypingRace(String passage, int seatCount, boolean autocorrectEnabled, boolean caffeineModeEnabled, boolean nightShiftEnabled)
     {
         this.passage = passage;
+        raceLength = this.passage.length()/2;
 
         if(seatCount < 2 ) {
             seatCount = 2;
@@ -74,7 +73,7 @@ public class TypingRace
 
         double typistSpeed = roundTwoDecimals(SPEED+typistSpeedBoost);
         double typistMistype = roundTwoDecimals(MISTYPE_BASE_CHANCE + typistMistypeMod);
-        int burnoutDuration = BURNOUT_DURATION + burnoutDurationMod;
+        int burnoutDuration =  burnoutDurationMod;
         double typistBurnout = typistBurnoutMod;
         
 
@@ -121,22 +120,22 @@ public class TypingRace
     private void advanceTypist(Typist theTypist)
     {
 
-        if(caffeineModeEnabled && turnNumber <= 10 && !caffeineFlag) {
+        if(caffeineModeEnabled && turnNumber <= 10 && !theTypist.getCaffeineFlag()) {
             theTypist.setSpeed(roundTwoDecimals(theTypist.getSpeed() + CAFFEINE_BOOST));
-            caffeineFlag = true;
+            theTypist.setCaffeineFlag(true);
 
-        }else if (caffeineModeEnabled && turnNumber == 10) {
+        }else if (caffeineModeEnabled && turnNumber >= 10 && theTypist.getCaffeineFlag()) {
             theTypist.setSpeed(roundTwoDecimals(theTypist.getSpeed()- CAFFEINE_BOOST));
             theTypist.setBurnoutChanceModifier(roundTwoDecimals(theTypist.getBurnoutChanceModifier() + CAFFEINE_BURNOUT ));
-            caffeineFlag = false;
+            theTypist.setCaffeineFlag(false);
         }
 
-        if(energyDrink && turnNumber < (raceLength/2) && !energyFlag) {
+        if(energyDrink && turnNumber < (raceLength/2) && !theTypist.getEnergyFlag()) {
             theTypist.setAccuracy(roundTwoDecimals(ENERGY_BOOST + theTypist.getAccuracy()));
-            energyFlag = true;
-        }else if (energyDrink && turnNumber >= (raceLength/2) && energyFlag){
+            theTypist.setEnergyFlag(true);
+        }else if (energyDrink && turnNumber >= (raceLength/2) && theTypist.getEnergyFlag()){
             theTypist.setAccuracy(roundTwoDecimals(theTypist.getAccuracy()- 2*ENERGY_BOOST));
-            energyFlag =false;
+            theTypist.setEnergyFlag(false);
 
         }
 
