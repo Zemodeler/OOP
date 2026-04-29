@@ -12,6 +12,8 @@ package Part2;
 import javax.swing.*;
 import java.awt.*;
 import javax.swing.text.*;
+import java.util.Map;
+import java.util.HashMap;
 
 public class TypingRaceGUI {
     private JFrame frame;
@@ -47,6 +49,8 @@ public class TypingRaceGUI {
     
     private TypingRace race;
     private Timer raceTimer;
+
+    private Map<String, Double> personalBestWPMs = new HashMap<>();
 
     private JTextPane[] passagePanes;
     private JLabel[] raceTypistLabels;
@@ -536,18 +540,117 @@ public class TypingRaceGUI {
 
             if (race.isFinished()) {
                 raceTimer.stop();
-
-                Typist winner = race.getWinner();
-
-                JOptionPane.showMessageDialog(
-                    frame,
-                    "And the winner is... " + winner.getName()
-                    + "\nFinal accuracy: " + String.format("%.2f", winner.getAccuracy())
-                );
+                showRaceStatisticsDialog();
             }
         });
 
         raceTimer.start();
+    }
+
+    private void showRaceStatisticsDialog() {
+        StringBuilder stats = new StringBuilder();
+
+        Typist winner = race.getWinner();
+
+        stats.append("And the winner is... ")
+            .append(winner.getName())
+            .append("\n\n");
+
+        stats.append("Race Statistics\n");
+        stats.append("====================\n");
+
+        double elapsedMinutes = (race.getTurnNumber() * 150.0) / 60000.0;
+
+        if (elapsedMinutes <= 0) {
+            elapsedMinutes = 1.0 / 60000.0;
+        }
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            Typist typist = race.getTypist(i);
+
+            int displayedProgress = typist.getProgress();
+
+            if (displayedProgress > selectedPassage.length()) {
+                displayedProgress = selectedPassage.length();
+            }
+
+            double wordsTyped = displayedProgress / 5.0;
+            double wpm = wordsTyped / elapsedMinutes;
+
+            updatePersonalBest(typist, wpm);
+            double personalBest = getPersonalBest(typist);
+
+            double accuracyPercentage = typist.getAccuracyPercentage();
+            double startingAccuracy = typist.getStartingAccuracy();
+            double finalAccuracy = typist.getAccuracy();
+            double accuracyChange = finalAccuracy - startingAccuracy;
+
+            stats.append(typist.getSymbol())
+                .append(" ")
+                .append(typist.getName())
+                .append("\n");
+
+            stats.append("Personal Best WPM: ")
+                .append(String.format("%.2f", personalBest))
+                .append("\n");
+            
+            stats.append("WPM: ")
+                .append(String.format("%.2f", wpm))
+                .append("\n");
+
+            stats.append("Accuracy Percentage: ")
+                .append(String.format("%.2f", accuracyPercentage))
+                .append("%\n");
+
+            stats.append("Burnout Count: ")
+                .append(typist.getBurnoutCount())
+                .append("\n");
+
+            stats.append("Accuracy Change: ")
+                .append(String.format("%.2f", startingAccuracy))
+                .append(" → ")
+                .append(String.format("%.2f", finalAccuracy))
+                .append(" (")
+                .append(String.format("%+.2f", accuracyChange))
+                .append(")\n");
+
+            stats.append("--------------------\n");
+        }
+
+        JTextArea statsArea = new JTextArea(stats.toString());
+        statsArea.setEditable(false);
+        statsArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+
+        JOptionPane.showMessageDialog(
+            frame,
+            new JScrollPane(statsArea),
+            "Race Results",
+            JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    private String getTypistPersonalBestKey(Typist typist) {
+        return typist.getName().trim().toLowerCase();
+    }
+
+    private void updatePersonalBest(Typist typist, double wpm) {
+        String key = getTypistPersonalBestKey(typist);
+
+        if (!personalBestWPMs.containsKey(key)) {
+            personalBestWPMs.put(key, wpm);
+        } else if (wpm > personalBestWPMs.get(key)) {
+            personalBestWPMs.put(key, wpm);
+        }
+    }
+
+    private double getPersonalBest(Typist typist) {
+        String key = getTypistPersonalBestKey(typist);
+
+        if (!personalBestWPMs.containsKey(key)) {
+            return 0.0;
+        }
+
+        return personalBestWPMs.get(key);
     }
 
     private void updateActualRaceScreen() {
@@ -708,7 +811,7 @@ public class TypingRaceGUI {
         }
 
         if (keyboardType.equals("Touchscreen")) {
-            modifier += 0.10;
+            modifier += 0.15;
         }
 
         if (accessory.equals("Noise-Cancelling Headphones")) {
@@ -723,7 +826,6 @@ public class TypingRaceGUI {
 
         String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
         String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
 
         if (typingStyle.equals("Touch Typist")) {
             modifier += 0.03;
@@ -734,11 +836,7 @@ public class TypingRaceGUI {
         }
 
         if (keyboardType.equals("Stenography")) {
-            modifier += 0.05;
-        }
-
-        if (accessory.equals("Energy Drink")) {
-            modifier += 0.03;
+            modifier += 0.15;
         }
 
         return modifier;

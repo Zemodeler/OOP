@@ -144,6 +144,7 @@ public class TypingRace
 
         // Attempt to type a character
             if (Math.random() < theTypist.getAccuracy()) {
+                theTypist.recordCorrectKeystroke();
                 theTypist.accumulateTyping();
             }
 
@@ -155,6 +156,8 @@ public class TypingRace
             if(autocorrectEnabled == true) {
                 SLIDE_BACK_AMOUNT = SLIDE_BACK_AMOUNT_ORIGINAL / 2;
             }
+
+            theTypist.recordMistype();
             theTypist.slideBack(SLIDE_BACK_AMOUNT);
         }
 
@@ -163,6 +166,8 @@ public class TypingRace
         if (Math.random() < 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy() + theTypist.getBurnoutChanceModifier())
         {   
             int burnoutModifier = theTypist.getBurnoutDurationAdjustment();
+
+            theTypist.recordBurnout();
             theTypist.burnOut(BURNOUT_DURATION+burnoutModifier);
             theTypist.setAccuracy(theTypist.getAccuracy() - 0.01);
         }

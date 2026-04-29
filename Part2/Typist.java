@@ -29,6 +29,11 @@ public class Typist
     private boolean caffeineFlag = false;
     private boolean energyFlag = false;
 
+    private int correctKeystrokes;
+    private int mistypeCount;
+    private int burnoutCount;
+    private double startingAccuracy;
+
     // Constructor of class Typist
     public Typist(String typistSymbol, String typistName, double typistAccuracy, Color typistColor, double typistSpeedBoost, double typistmystype, double typistburnout, int burnoutDuration, boolean energyDrink)
     {
@@ -43,6 +48,11 @@ public class Typist
         this.progress = 0;
         this.burnOut = false;
         this.burnoutTurnsRemaining = 0;
+
+        startingAccuracy = getAccuracy();
+        correctKeystrokes = 0;
+        mistypeCount = 0;
+        burnoutCount = 0;
 
         setSymbol(typistSymbol);
         setAccuracy(typistAccuracy);
@@ -134,6 +144,32 @@ public class Typist
         return energyFlag;
     }
 
+    public int getCorrectKeystrokes() {
+        return correctKeystrokes;
+    }
+
+    public int getMistypeCount() {
+        return mistypeCount;
+    }
+
+    public int getBurnoutCount() {
+        return burnoutCount;
+    }
+
+    public double getStartingAccuracy() {
+        return startingAccuracy;
+    }
+
+    public double getAccuracyPercentage() {
+        int totalAttempts = correctKeystrokes + mistypeCount;
+
+        if (totalAttempts == 0) {
+            return 0.0;
+        }
+
+        return (correctKeystrokes * 100.0) / totalAttempts;
+    }
+
     // setters
 
     public void setSymbol(String symbol) {
@@ -170,6 +206,12 @@ public class Typist
         progress = 0;
         burnoutTurnsRemaining = 0;
         burnOut = false;
+        extraTyping = 0.0;
+
+        startingAccuracy = getAccuracy();
+        correctKeystrokes = 0;
+        mistypeCount = 0;
+        burnoutCount = 0;
     }
 
     public boolean isBurntOut() {
@@ -210,6 +252,18 @@ public class Typist
 
     public void setEnergyFlag(boolean value) {
         energyFlag = value;
+    }
+
+    public void recordCorrectKeystroke() {
+        correctKeystrokes++;
+    }
+
+    public void recordMistype() {
+        mistypeCount++;
+    }
+
+    public void recordBurnout() {
+        burnoutCount++;
     }
 
 }
