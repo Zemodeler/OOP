@@ -1,3 +1,12 @@
+/**
+ * Description: 
+ * GUI Part of Typing Races, creates a GUI configuration screen that allows the user the configure the difficulty
+ * and different aspects of the typing race.
+ *
+ * @author Andrei Dodu
+ * @version 1.0
+ */
+
 package Part2;
 import javax.swing.*;
 import java.awt.*;
