@@ -429,22 +429,6 @@ public class TypingRaceGUI {
         typistDesignPanel.add(accessoryPanel);
     }
 
-    private void appendTypistNames(JTextArea raceOutputArea) {
-        raceOutputArea.append("Typist Names:\n");
-
-        for (int i = 0; i < selectedSeatCount; i++) {
-            String name = nameFields[i].getText();
-
-            if (name.trim().isEmpty()) {
-                name = "Typist " + (i + 1);
-            }
-
-            raceOutputArea.append("Typist " + (i + 1) + ": " + name + "\n");
-        }
-
-        raceOutputArea.append("\n");
-    }
-
     private void startRaceFromDesignedTypists() {
         createRaceFromDesignedTypists();
         createActualRaceScreen();
@@ -545,7 +529,7 @@ public class TypingRaceGUI {
     }
 
     private void startActualRaceTimer() {
-        raceTimer = new Timer(300, e -> {
+        raceTimer = new Timer(150, e -> {
             race.advanceOneTurn();
             updateActualRaceScreen();
 
@@ -680,7 +664,7 @@ public class TypingRaceGUI {
         }
 
         if (accessory.equals("Energy Drink")) {
-            boost += 0.05;
+            race.UsingEnergyDrink();
         }
 
         return boost;
@@ -766,7 +750,7 @@ public class TypingRaceGUI {
         }
 
         if (accessory.equals("Wrist Support")) {
-            modifier -= 1;
+            modifier -= 2;
         }
 
         return modifier;

@@ -1,5 +1,4 @@
 package Part2;
-import java.util.concurrent.TimeUnit;
 import java.awt.Color;
 import java.lang.Math;
 /**
@@ -18,21 +17,25 @@ public class TypingRace
     private boolean autocorrectEnabled;
     private boolean caffeineModeEnabled;
     private boolean nightShiftEnabled;
+    private boolean energyDrink;
     
 
     private static final double MISTYPE_BASE_CHANCE = 0.3;
     private static final int    SLIDE_BACK_AMOUNT_ORIGINAL   = 2;
     private static final int    BURNOUT_DURATION     = 3;
-    private static final double ACCURACY     = 0.6;
+    private static final double ACCURACY     = 0.7;
     private static final double SPEED = 1.0; 
     private static final double CAFFEINE_BOOST = 0.2;
     private static final double CAFFEINE_BURNOUT = 0.2;
+    private static final double ENERGY_BOOST = 0.2;
     
     private boolean finished;
     private Typist winner;
     private boolean caffeineFlag = false;
+    private boolean energyFlag = false;
     private double winnerAccuracyBeforeBonus;
     private int turnNumber = 0;
+    private int raceLength = passage.length();
 
     
 
@@ -85,26 +88,6 @@ public class TypingRace
      * turn by turn until one typist completes the full passage.
      */
 
-
-    public void startRace()
-    {   
-        finished = false;
-        winner = null;
-
-        while (!finished){
-            advanceOneTurn();
-            turnNumber += 1;
-
-            try {
-                TimeUnit.MILLISECONDS.sleep(200);
-            } catch (Exception e) {}
-        }
-
-        double OldAccuracy = winner.getAccuracy();
-        winner.setAccuracy(OldAccuracy+0.02); // As Shown in the image of the simulation, 0.02 improvement.
-
-    }
-
     public void advanceOneTurn() {
         if (finished) {
             return;
@@ -146,6 +129,16 @@ public class TypingRace
         }else if (caffeineModeEnabled && turnNumber == 10) {
             theTypist.setSpeed(roundTwoDecimals(theTypist.getSpeed()- CAFFEINE_BOOST));
             theTypist.setBurnoutChanceModifier(roundTwoDecimals(theTypist.getBurnoutChanceModifier() + CAFFEINE_BURNOUT ));
+            caffeineFlag = false;
+        }
+
+        if(energyDrink && turnNumber < (raceLength/2) && !energyFlag) {
+            theTypist.setAccuracy(roundTwoDecimals(ENERGY_BOOST + theTypist.getAccuracy()));
+            energyFlag = true;
+        }else if (energyDrink && turnNumber >= (raceLength/2) && energyFlag){
+            theTypist.setAccuracy(roundTwoDecimals(theTypist.getAccuracy()- 2*ENERGY_BOOST));
+            energyFlag =false;
+
         }
 
         if (theTypist.isBurntOut())
@@ -162,7 +155,7 @@ public class TypingRace
         }
 
         // Mistype check — the probability should reflect the typist's accuracy
-        if (Math.random()* (1- theTypist.getMistypeChanceModifier()) < (1.0 - theTypist.getAccuracy()))
+        if (Math.random() < (1.0 - theTypist.getAccuracy()) * theTypist.getMistypeChanceModifier())
         {      
             int SLIDE_BACK_AMOUNT = SLIDE_BACK_AMOUNT_ORIGINAL;
             
@@ -174,11 +167,11 @@ public class TypingRace
 
         // Burnout check — pushing too hard increases burnout risk
         // (probability scales with accuracy squared, capped at ~0.05)
-        if (Math.random() * (1-theTypist.getBurnoutChanceModifier()) < 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy())
+        if (Math.random() < 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy() + theTypist.getBurnoutChanceModifier())
         {   
             int burnoutModifier = theTypist.getBurnoutDurationAdjustment();
             theTypist.burnOut(BURNOUT_DURATION+burnoutModifier);
-            theTypist.setAccuracy(theTypist.getAccuracy() - 0.02);
+            theTypist.setAccuracy(theTypist.getAccuracy() - 0.01);
         }
     }
 
@@ -218,7 +211,7 @@ public class TypingRace
         return passage;
     }
 
-    public static void main(String[] args) {
-
+    public void UsingEnergyDrink() {
+        energyDrink = true;
     }
 }
