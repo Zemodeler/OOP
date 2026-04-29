@@ -240,7 +240,7 @@ public class TypingRaceGUI {
         titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
         titleLabel.setHorizontalAlignment(JLabel.CENTER);
 
-        JTextArea summaryArea = new JTextArea(7, 50);
+        JTextArea summaryArea = new JTextArea(14, 50);
         summaryArea.setEditable(false);
         summaryArea.setLineWrap(true);
         summaryArea.setWrapStyleWord(true);
@@ -449,6 +449,7 @@ public class TypingRaceGUI {
             String symbol = getTypistSymbol(i);
 
             double accuracyBoost = calculateAccuracyBoost(i);
+            boolean energyDrink = checkEnergyDrink(i);
             double speedBoost = calculateSpeedBoost(i);
             double burnoutModifier = calculateBurnoutModifier(i);
             double mistypeModifier = calculateMistypeModifier(i);
@@ -463,7 +464,8 @@ public class TypingRaceGUI {
                 burnoutModifier,
                 mistypeModifier,
                 burnoutDurationModifier,
-                i + 1
+                i + 1,
+                energyDrink
             );
         }
     }
@@ -642,7 +644,6 @@ public class TypingRaceGUI {
 
         String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
         String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
 
         if (typingStyle.equals("Touch Typist")) {
             boost += 0.10;
@@ -662,11 +663,16 @@ public class TypingRaceGUI {
             boost += 0.10;
         }
 
-        if (accessory.equals("Energy Drink")) {
-            race.UsingEnergyDrink();
-        }
-
         return boost;
+    }
+
+    private boolean checkEnergyDrink (int index) {
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (accessory.equals("Energy Drink")) {
+            return true;
+        }
+        return false;
     }
 
     private double calculateSpeedBoost(int index) {

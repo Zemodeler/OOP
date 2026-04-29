@@ -25,13 +25,12 @@ public class Typist
     private int burnoutDurationModifier;
     private double extraTyping = 0.0;
 
+    private boolean energyDrink = false;
     private boolean caffeineFlag = false;
     private boolean energyFlag = false;
 
-    
-
     // Constructor of class Typist
-    public Typist(String typistSymbol, String typistName, double typistAccuracy, Color typistColor, double typistSpeedBoost, double typistmystype, double typistburnout, int burnoutDuration)
+    public Typist(String typistSymbol, String typistName, double typistAccuracy, Color typistColor, double typistSpeedBoost, double typistmystype, double typistburnout, int burnoutDuration, boolean energyDrink)
     {
         this.name = typistName;
         this.color = typistColor;
@@ -39,6 +38,7 @@ public class Typist
         this.mystypeModifier = typistmystype;
         this.burnoutModifier = typistburnout;
         this.burnoutDurationModifier = burnoutDuration;
+        this.energyDrink = energyDrink;
 
         this.progress = 0;
         this.burnOut = false;
@@ -126,6 +126,10 @@ public class Typist
         return caffeineFlag;
     }
 
+    public boolean getEnergyDrink() {
+        return energyDrink;
+    }
+
     public boolean getEnergyFlag() {
         return energyFlag;
     }
@@ -198,6 +202,10 @@ public class Typist
 
     public void setCaffeineFlag(boolean value) {
         caffeineFlag = value;
+    }
+    
+    public void setEnergyDrink(boolean value) {
+        energyDrink = value;
     }
 
     public void setEnergyFlag(boolean value) {

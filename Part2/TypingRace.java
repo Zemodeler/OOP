@@ -17,8 +17,6 @@ public class TypingRace
     private boolean autocorrectEnabled;
     private boolean caffeineModeEnabled;
     private boolean nightShiftEnabled;
-    private boolean energyDrink;
-    
 
     private static final double MISTYPE_BASE_CHANCE = 0.2;
     private static final int    SLIDE_BACK_AMOUNT_ORIGINAL   = 2;
@@ -32,10 +30,9 @@ public class TypingRace
     private boolean finished;
     private Typist winner;
     private double winnerAccuracyBeforeBonus;
-    private int turnNumber = 0;
+    private int turnNumber;
     private int raceLength;
     
-
     /**
      * Constructor for objects of class TypingRace.
      * Sets up the race with a passage of the given length.
@@ -61,10 +58,10 @@ public class TypingRace
         typists = new Typist[seatCount];
         finished = false;
         winner = null;
-        turnNumber = 1;
+        turnNumber = 0;
     }
 
-    public void createTypist(String symbol, String name ,double accuracyBoost,Color color, double typistSpeedBoost,double typistBurnoutMod,double typistMistypeMod,int burnoutDurationMod, int seatCount) {
+    public void createTypist(String symbol, String name ,double accuracyBoost,Color color, double typistSpeedBoost,double typistBurnoutMod,double typistMistypeMod,int burnoutDurationMod, int seatCount, boolean energyDrink) {
         double accuracy = roundTwoDecimals(ACCURACY + accuracyBoost);
 
         if (nightShiftEnabled) {
@@ -77,7 +74,7 @@ public class TypingRace
         double typistBurnout = typistBurnoutMod;
         
 
-        typists[seatCount-1] = new Typist(symbol, name, accuracy, color, typistSpeed, typistMistype, typistBurnout, burnoutDuration);
+        typists[seatCount-1] = new Typist(symbol, name, accuracy, color, typistSpeed, typistMistype, typistBurnout, burnoutDuration, energyDrink);
     }
 
     /**
@@ -124,19 +121,18 @@ public class TypingRace
             theTypist.setSpeed(roundTwoDecimals(theTypist.getSpeed() + CAFFEINE_BOOST));
             theTypist.setCaffeineFlag(true);
 
-        }else if (caffeineModeEnabled && turnNumber >= 10 && theTypist.getCaffeineFlag()) {
+        }else if (caffeineModeEnabled && turnNumber > 10 && theTypist.getCaffeineFlag()) {
             theTypist.setSpeed(roundTwoDecimals(theTypist.getSpeed()- CAFFEINE_BOOST));
             theTypist.setBurnoutChanceModifier(roundTwoDecimals(theTypist.getBurnoutChanceModifier() + CAFFEINE_BURNOUT ));
             theTypist.setCaffeineFlag(false);
         }
 
-        if(energyDrink && turnNumber < (raceLength/2) && !theTypist.getEnergyFlag()) {
+        if(theTypist.getEnergyDrink() && theTypist.getProgress() < (raceLength) && !theTypist.getEnergyFlag()) {
             theTypist.setAccuracy(roundTwoDecimals(ENERGY_BOOST + theTypist.getAccuracy()));
             theTypist.setEnergyFlag(true);
-        }else if (energyDrink && turnNumber >= (raceLength/2) && theTypist.getEnergyFlag()){
+        }else if (theTypist.getEnergyDrink() && theTypist.getProgress() >= (raceLength) && theTypist.getEnergyFlag()){
             theTypist.setAccuracy(roundTwoDecimals(theTypist.getAccuracy()- 2*ENERGY_BOOST));
             theTypist.setEnergyFlag(false);
-
         }
 
         if (theTypist.isBurntOut())
@@ -205,9 +201,5 @@ public class TypingRace
 
     public String getPassage() {
         return passage;
-    }
-
-    public void UsingEnergyDrink() {
-        energyDrink = true;
     }
 }
