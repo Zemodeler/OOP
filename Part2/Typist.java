@@ -23,6 +23,7 @@ public class Typist
     private double mystypeModifier;
     private double burnoutModifier;
     private int burnoutDurationModifier;
+    private double extraTyping = 0.0;
 
     
 
@@ -46,6 +47,15 @@ public class Typist
 
 
     // Methods of class Typist
+
+    public void accumulateTyping() {
+        extraTyping += getSpeed();
+
+        while (extraTyping >= 1.0) {
+            typeCharacter();
+            extraTyping -= 1.0;
+        }
+    }
 
     public void burnOut(int turns)
     {
@@ -137,26 +147,21 @@ public class Typist
         this.burnoutDurationModifier = burnoutDurationAdjustment;
     }
 
-    public void resetToStart()
-    {
+    public void resetToStart() {
         progress = 0;
         burnoutTurnsRemaining = 0;
         burnOut = false;
-
     }
 
-    public boolean isBurntOut()
-    {
+    public boolean isBurntOut() {
         return burnOut;
     }
 
-    public void typeCharacter()
-    {
+    public void typeCharacter() {
         progress++;
     }
 
-    public void slideBack(int amount)
-    {
+    public void slideBack(int amount) {
         if (amount > 0) {
             if (progress - amount < 0 ) {
                 progress = 0;
@@ -166,8 +171,7 @@ public class Typist
         }
     }
 
-    public void setAccuracy(double newAccuracy)
-    {
+    public void setAccuracy(double newAccuracy) {
         if(newAccuracy < 0.0) {
             newAccuracy = 0.0;
         }else if (newAccuracy > 1.0) {

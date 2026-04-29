@@ -487,8 +487,7 @@ public class TypingRaceGUI {
             JPanel lanePanel = new JPanel(new BorderLayout());
 
             raceTypistLabels[i] = new JLabel(
-                typist.getSymbol() + " " + typist.getName()
-                + " | Progress: 0 / " + selectedPassage.length()
+                typist.getSymbol() + " " + typist.getName() + " | Progress: 0 / " + selectedPassage.length()
             );
 
             raceProgressBars[i] = new JProgressBar(0, selectedPassage.length());

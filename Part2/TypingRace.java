@@ -36,7 +36,6 @@ public class TypingRace
     private double winnerAccuracyBeforeBonus;
     private int turnNumber = 0;
     private int raceLength = passage.length();
-
     
 
     /**
@@ -149,10 +148,9 @@ public class TypingRace
         }
 
         // Attempt to type a character
-        if (Math.random() < theTypist.getAccuracy())
-        {
-            theTypist.typeCharacter();
-        }
+            if (Math.random() < theTypist.getAccuracy()) {
+                theTypist.accumulateTyping();
+            }
 
         // Mistype check — the probability should reflect the typist's accuracy
         if (Math.random() < (1.0 - theTypist.getAccuracy()) * theTypist.getMistypeChanceModifier())
@@ -183,7 +181,6 @@ public class TypingRace
         if (index >= 0 && index < typists.length) {
             return typists[index];
         }
-
         return null;
     }
 
