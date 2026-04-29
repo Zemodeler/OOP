@@ -281,7 +281,7 @@ public class TypingRaceGUI {
         summaryArea.append("- Mechanical: improves accuracy slightly but lowers typing speed.\n");
         summaryArea.append("- Membrane: balanced option with no major bonus or penalty.\n");
         summaryArea.append("- Touchscreen: increases mistype chance but improves typing speed.\n");
-        summaryArea.append("- Stenography: increases speed and accuracy, but increases burnout risk.\n\n");
+        summaryArea.append("- Stenography: increases speed and accuracy, but longer burnout risk.\n\n");
 
         summaryArea.append("Symbol / Emoji and Colour:\n");
         summaryArea.append("- Symbol / Emoji: visual identifier only; it helps distinguish typists on screen.\n");

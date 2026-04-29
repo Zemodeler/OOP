@@ -24,22 +24,22 @@ public class Typist
     private double accuracy; // accuracy of typist
 
     private Color color;
-    private int speedBoost;
+    private double speed;
     private double mystypeModifier;
     private double burnoutModifier;
-    private int burnoutDuratinModifier;
+    private int burnoutDurationModifier;
 
     
 
     // Constructor of class Typist
-    public Typist(String typistSymbol, String typistName, double typistAccuracy, Color typistColor, int typistSpeedBoost, double typistmystype, double typistburnout, int burnoutDuration)
+    public Typist(String typistSymbol, String typistName, double typistAccuracy, Color typistColor, double typistSpeedBoost, double typistmystype, double typistburnout, int burnoutDuration)
     {
         this.name = typistName;
         this.color = typistColor;
-        this.speedBoost = typistSpeedBoost;
+        this.speed = typistSpeedBoost;
         this.mystypeModifier = typistmystype;
         this.burnoutModifier = typistburnout;
-        this.burnoutDuratinModifier = burnoutDuration;
+        this.burnoutDurationModifier = burnoutDuration;
 
         this.progress = 0;
         this.burnOut = false;
@@ -96,8 +96,8 @@ public class Typist
         return color;
     }
 
-    public int getSpeedBoost() {
-        return speedBoost;
+    public double getSpeed() {
+        return speed;
     }
 
     public double getMistypeChanceModifier() {
@@ -109,7 +109,7 @@ public class Typist
     }
 
     public int getBurnoutDurationAdjustment() {
-        return burnoutDuratinModifier;
+        return burnoutDurationModifier;
     }
 
     public void setSymbol(String symbol) {
@@ -126,8 +126,8 @@ public class Typist
         }
     }
 
-    public void setSpeedBoost(int speedBoost) {
-        this.speedBoost = speedBoost;
+    public void setSpeed(double speedBoost) {
+        this.speed = speedBoost;
     }
 
     public void setMistypeChanceModifier(double mistypeChanceModifier) {
@@ -139,7 +139,7 @@ public class Typist
     }
 
     public void setBurnoutDurationAdjustment(int burnoutDurationAdjustment) {
-        this.burnoutDuratinModifier = burnoutDurationAdjustment;
+        this.burnoutDurationModifier = burnoutDurationAdjustment;
     }
 
     public void resetToStart()
