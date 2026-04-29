@@ -227,7 +227,7 @@ public class TypingRaceGUI {
     private void createTypistDesignScreen() {
         JPanel mainPanel = new JPanel(new BorderLayout());
 
-        JLabel titleLabel = new JLabel("Design Your Typists - Typing Style");
+        JLabel titleLabel = new JLabel("Design Your Typists");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
         titleLabel.setHorizontalAlignment(JLabel.CENTER);
 
@@ -236,22 +236,20 @@ public class TypingRaceGUI {
         summaryArea.setLineWrap(true);
         summaryArea.setWrapStyleWord(true);
 
-        summaryArea.append("Saved race configuration:\n");
-        summaryArea.append("Passage length: " + selectedPassage.length() + " characters\n");
-        summaryArea.append("Number of typists: " + selectedSeatCount + "\n");
-        summaryArea.append("Autocorrect: " + selectedAutocorrect + "\n");
-        summaryArea.append("Caffeine Mode: " + selectedCaffeineMode + "\n");
-        summaryArea.append("Night Shift: " + selectedNightShift + "\n\n");
-        summaryArea.append("Question 10: Choose a typing style for each typist.");
+        appendAttributeImpactInformation(summaryArea);
 
         typistDesignPanel = new JPanel(new GridLayout(0, 1, 8, 8));
+
         buildTypingStyleControls();
+        buildKeyboardTypeControls();
+        buildSymbolAndColourControls();
+        buildAccessoryControls();
 
         JButton backButton = new JButton("Back to Race Configuration");
         backButton.addActionListener(e -> createConfigurationScreen());
 
         JButton startRaceButton = new JButton("Start Race");
-        startRaceButton.addActionListener(e -> startRaceFromTypingStyles());
+        startRaceButton.addActionListener(e -> startRaceFromDesignedTypists());
 
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(backButton);
@@ -268,30 +266,144 @@ public class TypingRaceGUI {
         frame.setContentPane(mainPanel);
         frame.revalidate();
         frame.repaint();
+    }   
+
+    private void appendAttributeImpactInformation(JTextArea summaryArea) {
+        summaryArea.append("Attribute Impact Guide\n\n");
+
+        summaryArea.append("Typing Styles:\n");
+        summaryArea.append("- Touch Typist: higher accuracy, normal speed, higher burnout risk.\n");
+        summaryArea.append("- Hunt & Peck: lower accuracy, normal speed, lower burnout risk.\n");
+        summaryArea.append("- Phone Thumbs: lower accuracy, higher speed\n");
+        summaryArea.append("- Voice-to-Text: higher accuracy, lower burnout risk, higher mistype chance.\n\n");
+
+        summaryArea.append("Keyboard Types:\n");
+        summaryArea.append("- Mechanical: improves accuracy slightly but lowers typing speed.\n");
+        summaryArea.append("- Membrane: balanced option with no major bonus or penalty.\n");
+        summaryArea.append("- Touchscreen: increases mistype chance but improves typing speed.\n");
+        summaryArea.append("- Stenography: increases speed and accuracy, but increases burnout risk.\n\n");
+
+        summaryArea.append("Symbol / Emoji and Colour:\n");
+        summaryArea.append("- Symbol / Emoji: visual identifier only; it helps distinguish typists on screen.\n");
+        summaryArea.append("- Colour: visual identifier only; it will be used for the typist's progress display.\n\n");
+
+        summaryArea.append("Accessories:\n");
+        summaryArea.append("- None: no bonus or penalty.\n");
+        summaryArea.append("- Wrist Support: reduces burnout duration.\n");
+        summaryArea.append("- Energy Drink: improves accuracy in the first half of the race, then reduces accuracy later.\n");
+        summaryArea.append("- Noise-Cancelling Headphones: reduces mistype chance.\n");
+    }
+
+
+
+    private String getDefaultSymbol(int index) {
+        String[] symbols = {"①", "②", "③", "④", "⑤", "⑥"};
+
+        if (index >= 0 && index < symbols.length) {
+            return symbols[index];
+        } else {
+            return "?";
+        }
+    }
+
+    private void buildSymbolAndColourControls() {
+        symbolFields = new JTextField[selectedSeatCount];
+        colourButtons = new JButton[selectedSeatCount];
+        selectedColours = new Color[selectedSeatCount];
+
+        Color[] defaultColours = {
+            Color.BLUE,
+            Color.RED,
+            Color.GREEN,
+            Color.ORANGE,
+            Color.MAGENTA,
+            Color.CYAN
+        };
+
+        JPanel symbolColourPanel = new JPanel(new GridLayout(0, 3, 5, 5));
+        symbolColourPanel.setBorder(BorderFactory.createTitledBorder("Symbol / Emoji and Colour"));
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            final int index = i;
+
+            symbolFields[i] = new JTextField(getDefaultSymbol(i));
+
+            selectedColours[i] = defaultColours[i];
+
+            colourButtons[i] = new JButton("Choose Colour");
+            colourButtons[i].setBackground(selectedColours[i]);
+            colourButtons[i].setOpaque(true);
+
+            colourButtons[i].addActionListener(e -> {
+                Color chosenColour = JColorChooser.showDialog(
+                    frame,
+                    "Choose colour for Typist " + (index + 1),
+                    selectedColours[index]
+                );
+
+                if (chosenColour != null) {
+                    selectedColours[index] = chosenColour;
+                    colourButtons[index].setBackground(chosenColour);
+                }
+            });
+
+            symbolColourPanel.add(new JLabel("Typist " + (i + 1) + " Symbol / Emoji:"));
+            symbolColourPanel.add(symbolFields[i]);
+            symbolColourPanel.add(colourButtons[i]);
+        }
+
+        typistDesignPanel.add(symbolColourPanel);
     }
 
     private void buildTypingStyleControls() {
         typingStyleComboBoxes = new JComboBox[selectedSeatCount];
 
-        typistDesignPanel.removeAll();
+        JPanel typingStylePanel = new JPanel(new GridLayout(0, 2, 5, 5));
+        typingStylePanel.setBorder(BorderFactory.createTitledBorder("Typing Styles"));
 
         for (int i = 0; i < selectedSeatCount; i++) {
-            JPanel singleTypistPanel = new JPanel(new GridLayout(0, 2, 5, 5));
-            singleTypistPanel.setBorder(BorderFactory.createTitledBorder("Typist " + (i + 1)));
-
             typingStyleComboBoxes[i] = new JComboBox<>(TYPING_STYLES);
 
-            singleTypistPanel.add(new JLabel("Typing Style:"));
-            singleTypistPanel.add(typingStyleComboBoxes[i]);
-
-            typistDesignPanel.add(singleTypistPanel);
+            typingStylePanel.add(new JLabel("Typist " + (i + 1) + " Typing Style:"));
+            typingStylePanel.add(typingStyleComboBoxes[i]);
         }
 
-        typistDesignPanel.revalidate();
-        typistDesignPanel.repaint();
+        typistDesignPanel.add(typingStylePanel);
     }
 
-    private void startRaceFromTypingStyles() {
+    private void buildKeyboardTypeControls() {
+        keyboardTypeComboBoxes = new JComboBox[selectedSeatCount];
+
+        JPanel keyboardTypePanel = new JPanel(new GridLayout(0, 2, 5, 5));
+        keyboardTypePanel.setBorder(BorderFactory.createTitledBorder("Keyboard Types"));
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            keyboardTypeComboBoxes[i] = new JComboBox<>(KEYBOARD_TYPES);
+
+            keyboardTypePanel.add(new JLabel("Typist " + (i + 1) + " Keyboard Type:"));
+            keyboardTypePanel.add(keyboardTypeComboBoxes[i]);
+        }
+
+        typistDesignPanel.add(keyboardTypePanel);
+    }
+
+    private void buildAccessoryControls() {
+        accessoryComboBoxes = new JComboBox[selectedSeatCount];
+
+        JPanel accessoryPanel = new JPanel(new GridLayout(0, 2, 5, 5));
+        accessoryPanel.setBorder(BorderFactory.createTitledBorder("Accessories"));
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            accessoryComboBoxes[i] = new JComboBox<>(ACCESSORIES);
+
+            accessoryPanel.add(new JLabel("Typist " + (i + 1) + " Accessory:"));
+            accessoryPanel.add(accessoryComboBoxes[i]);
+        }
+
+        typistDesignPanel.add(accessoryPanel);
+    }
+
+    private void startRaceFromDesignedTypists() {
         JPanel racePanel = new JPanel(new BorderLayout());
 
         JLabel titleLabel = new JLabel("Race Started");
@@ -311,7 +423,7 @@ public class TypingRaceGUI {
         raceOutputArea.append("Caffeine Mode: " + selectedCaffeineMode + "\n");
         raceOutputArea.append("Night Shift: " + selectedNightShift + "\n\n");
 
-        raceOutputArea.append("Question 10 - Typing Styles:\n");
+        raceOutputArea.append("Typing Styles:\n");
 
         for (int i = 0; i < selectedSeatCount; i++) {
             raceOutputArea.append("Typist " + (i + 1) + ": ");
