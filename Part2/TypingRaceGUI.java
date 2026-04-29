@@ -11,6 +11,7 @@ package Part2;
 
 import javax.swing.*;
 import java.awt.*;
+import javax.swing.text.*;
 
 public class TypingRaceGUI {
     private JFrame frame;
@@ -38,10 +39,18 @@ public class TypingRaceGUI {
 
     private JComboBox<String>[] typingStyleComboBoxes;
     private JComboBox<String>[] keyboardTypeComboBoxes;
+    private JTextField[] nameFields;
     private JTextField[] symbolFields;
     private JButton[] colourButtons;
     private JComboBox<String>[] accessoryComboBoxes;
     private Color[] selectedColours;
+    
+    private TypingRace race;
+    private Timer raceTimer;
+
+    private JTextPane[] passagePanes;
+    private JLabel[] raceTypistLabels;
+    private JProgressBar[] raceProgressBars;
 
     private final String[] TYPING_STYLES = {
         "Touch Typist",
@@ -240,6 +249,7 @@ public class TypingRaceGUI {
 
         typistDesignPanel = new JPanel(new GridLayout(0, 1, 8, 8));
 
+        buildTypistNameControls();
         buildTypingStyleControls();
         buildKeyboardTypeControls();
         buildSymbolAndColourControls();
@@ -267,6 +277,22 @@ public class TypingRaceGUI {
         frame.revalidate();
         frame.repaint();
     }   
+
+    private void buildTypistNameControls() {
+        nameFields = new JTextField[selectedSeatCount];
+
+        JPanel namePanel = new JPanel(new GridLayout(0, 2, 5, 5));
+        namePanel.setBorder(BorderFactory.createTitledBorder("Typist Names"));
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            nameFields[i] = new JTextField("Typist " + (i + 1));
+
+            namePanel.add(new JLabel("Typist " + (i + 1) + " Name:"));
+            namePanel.add(nameFields[i]);
+        }
+
+        typistDesignPanel.add(namePanel);
+    }
 
     private void appendAttributeImpactInformation(JTextArea summaryArea) {
         summaryArea.append("Attribute Impact Guide\n\n");
@@ -403,44 +429,347 @@ public class TypingRaceGUI {
         typistDesignPanel.add(accessoryPanel);
     }
 
-    private void startRaceFromDesignedTypists() {
-        JPanel racePanel = new JPanel(new BorderLayout());
+    private void appendTypistNames(JTextArea raceOutputArea) {
+        raceOutputArea.append("Typist Names:\n");
 
-        JLabel titleLabel = new JLabel("Race Started");
+        for (int i = 0; i < selectedSeatCount; i++) {
+            String name = nameFields[i].getText();
+
+            if (name.trim().isEmpty()) {
+                name = "Typist " + (i + 1);
+            }
+
+            raceOutputArea.append("Typist " + (i + 1) + ": " + name + "\n");
+        }
+
+        raceOutputArea.append("\n");
+    }
+
+    private void startRaceFromDesignedTypists() {
+        createRaceFromDesignedTypists();
+        createActualRaceScreen();
+        startActualRaceTimer();
+    }
+
+    private void createRaceFromDesignedTypists() {
+        race = new TypingRace(
+            selectedPassage,
+            selectedSeatCount,
+            selectedAutocorrect,
+            selectedCaffeineMode,
+            selectedNightShift
+        );
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            String name = getTypistName(i);
+            String symbol = getTypistSymbol(i);
+
+            double accuracyBoost = calculateAccuracyBoost(i);
+            double speedBoost = calculateSpeedBoost(i);
+            double burnoutModifier = calculateBurnoutModifier(i);
+            double mistypeModifier = calculateMistypeModifier(i);
+            int burnoutDurationModifier = calculateBurnoutDurationModifier(i);
+
+            race.createTypist(
+                symbol,
+                name,
+                accuracyBoost,
+                selectedColours[i],
+                speedBoost,
+                burnoutModifier,
+                mistypeModifier,
+                burnoutDurationModifier,
+                i + 1
+            );
+        }
+    }
+
+    private void createActualRaceScreen() {
+        JPanel mainPanel = new JPanel(new BorderLayout());
+
+        JLabel titleLabel = new JLabel("Typing Race");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
         titleLabel.setHorizontalAlignment(JLabel.CENTER);
 
-        JTextArea raceOutputArea = new JTextArea(20, 60);
-        raceOutputArea.setEditable(false);
-        raceOutputArea.setLineWrap(true);
-        raceOutputArea.setWrapStyleWord(true);
+        JPanel lanesPanel = new JPanel(new GridLayout(selectedSeatCount, 1, 8, 8));
 
-        raceOutputArea.append("Race started with the following configuration:\n\n");
-
-        raceOutputArea.append("Passage length: " + selectedPassage.length() + " characters\n");
-        raceOutputArea.append("Number of typists: " + selectedSeatCount + "\n");
-        raceOutputArea.append("Autocorrect: " + selectedAutocorrect + "\n");
-        raceOutputArea.append("Caffeine Mode: " + selectedCaffeineMode + "\n");
-        raceOutputArea.append("Night Shift: " + selectedNightShift + "\n\n");
-
-        raceOutputArea.append("Typing Styles:\n");
+        passagePanes = new JTextPane[selectedSeatCount];
+        raceTypistLabels = new JLabel[selectedSeatCount];
+        raceProgressBars = new JProgressBar[selectedSeatCount];
 
         for (int i = 0; i < selectedSeatCount; i++) {
-            raceOutputArea.append("Typist " + (i + 1) + ": ");
-            raceOutputArea.append((String) typingStyleComboBoxes[i].getSelectedItem());
-            raceOutputArea.append("\n");
+            Typist typist = race.getTypist(i);
+
+            JPanel lanePanel = new JPanel(new BorderLayout());
+
+            raceTypistLabels[i] = new JLabel(
+                typist.getSymbol() + " " + typist.getName()
+                + " | Progress: 0 / " + selectedPassage.length()
+            );
+
+            raceProgressBars[i] = new JProgressBar(0, selectedPassage.length());
+            raceProgressBars[i].setValue(0);
+            raceProgressBars[i].setStringPainted(true);
+            raceProgressBars[i].setString("0 / " + selectedPassage.length());
+            raceProgressBars[i].setForeground(selectedColours[i]);
+
+            passagePanes[i] = new JTextPane();
+            passagePanes[i].setEditable(false);
+            passagePanes[i].setFont(new Font("Monospaced", Font.PLAIN, 16));
+
+            renderPassageProgress(i);
+
+            lanePanel.add(raceTypistLabels[i], BorderLayout.NORTH);
+            lanePanel.add(raceProgressBars[i], BorderLayout.CENTER);
+            lanePanel.add(new JScrollPane(passagePanes[i]), BorderLayout.SOUTH);
+
+            lanesPanel.add(lanePanel);
         }
 
         JButton backButton = new JButton("Back to Typist Design");
-        backButton.addActionListener(e -> createTypistDesignScreen());
+        backButton.addActionListener(e -> {
+            if (raceTimer != null) {
+                raceTimer.stop();
+            }
 
-        racePanel.add(titleLabel, BorderLayout.NORTH);
-        racePanel.add(new JScrollPane(raceOutputArea), BorderLayout.CENTER);
-        racePanel.add(backButton, BorderLayout.SOUTH);
+            createTypistDesignScreen();
+        });
 
-        frame.setContentPane(racePanel);
+        mainPanel.add(titleLabel, BorderLayout.NORTH);
+        mainPanel.add(new JScrollPane(lanesPanel), BorderLayout.CENTER);
+        mainPanel.add(backButton, BorderLayout.SOUTH);
+
+        frame.setContentPane(mainPanel);
         frame.revalidate();
         frame.repaint();
+    }
+
+    private void startActualRaceTimer() {
+        raceTimer = new Timer(300, e -> {
+            race.advanceOneTurn();
+            updateActualRaceScreen();
+
+            if (race.isFinished()) {
+                raceTimer.stop();
+
+                Typist winner = race.getWinner();
+
+                JOptionPane.showMessageDialog(
+                    frame,
+                    "And the winner is... " + winner.getName()
+                    + "\nFinal accuracy: " + String.format("%.2f", winner.getAccuracy())
+                );
+            }
+        });
+
+        raceTimer.start();
+    }
+
+    private void updateActualRaceScreen() {
+        for (int i = 0; i < selectedSeatCount; i++) {
+            Typist typist = race.getTypist(i);
+
+            int progress = typist.getProgress();
+
+            if (progress > selectedPassage.length()) {
+                progress = selectedPassage.length();
+            }
+
+            raceProgressBars[i].setValue(progress);
+            raceProgressBars[i].setString(progress + " / " + selectedPassage.length());
+
+            String labelText = typist.getSymbol() + " " + typist.getName()
+                + " | Progress: " + progress + " / " + selectedPassage.length();
+
+            if (typist.isBurntOut()) {
+                labelText += " | BURNT OUT (" + typist.getBurnoutTurnsRemaining() + " turns)";
+            }
+
+            raceTypistLabels[i].setText(labelText);
+
+            renderPassageProgress(i);
+        }
+    }
+
+    private void renderPassageProgress(int index) {
+        Typist typist = race.getTypist(index);
+        JTextPane passagePane = passagePanes[index];
+
+        int progress = typist.getProgress();
+
+        if (progress < 0) {
+            progress = 0;
+        }
+
+        if (progress > selectedPassage.length()) {
+            progress = selectedPassage.length();
+        }
+
+        StyledDocument document = passagePane.getStyledDocument();
+
+        Style defaultStyle = passagePane.addStyle("defaultStyle" + index, null);
+        StyleConstants.setForeground(defaultStyle, Color.BLACK);
+        StyleConstants.setBackground(defaultStyle, Color.WHITE);
+
+        Style completedStyle = passagePane.addStyle("completedStyle" + index, null);
+        StyleConstants.setForeground(completedStyle, Color.WHITE);
+        StyleConstants.setBackground(completedStyle, selectedColours[index]);
+
+        Style cursorStyle = passagePane.addStyle("cursorStyle" + index, null);
+        StyleConstants.setForeground(cursorStyle, Color.BLACK);
+        StyleConstants.setBackground(cursorStyle, Color.YELLOW);
+        StyleConstants.setBold(cursorStyle, true);
+
+        try {
+            document.remove(0, document.getLength());
+
+            String completedText = selectedPassage.substring(0, progress);
+            String remainingText = selectedPassage.substring(progress);
+
+            document.insertString(document.getLength(), completedText, completedStyle);
+            document.insertString(document.getLength(), " " + typist.getSymbol() + " ", cursorStyle);
+            document.insertString(document.getLength(), remainingText, defaultStyle);
+        } catch (BadLocationException e) {
+            System.out.println("Could not update passage display.");
+        }
+    }
+
+    private String getTypistName(int index) {
+        String name = nameFields[index].getText();
+
+        if (name.trim().isEmpty()) {
+            return "Typist " + (index + 1);
+        }
+
+        return name;
+    }
+
+    private String getTypistSymbol(int index) {
+        String symbol = symbolFields[index].getText();
+
+        if (symbol.trim().isEmpty()) {
+            return getDefaultSymbol(index);
+        }
+
+        return symbol;
+    }
+
+    private double calculateAccuracyBoost(int index) {
+        double boost = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Touch Typist")) {
+            boost += 0.10;
+        } else if (typingStyle.equals("Hunt & Peck")) {
+            boost -= 0.10;
+        } else if (typingStyle.equals("Phone Thumbs")) {
+            boost -= 0.05;
+        } else if (typingStyle.equals("Voice-to-Text")) {
+            boost += 0.05;
+        }
+
+        if (keyboardType.equals("Mechanical")) {
+            boost += 0.05;
+        } else if (keyboardType.equals("Touchscreen")) {
+            boost -= 0.05;
+        } else if (keyboardType.equals("Stenography")) {
+            boost += 0.10;
+        }
+
+        if (accessory.equals("Energy Drink")) {
+            boost += 0.05;
+        }
+
+        return boost;
+    }
+
+    private double calculateSpeedBoost(int index) {
+        double boost = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Phone Thumbs")) {
+            boost += 0.10;
+        }
+
+        if (keyboardType.equals("Mechanical")) {
+            boost -= 0.05;
+        } else if (keyboardType.equals("Touchscreen")) {
+            boost += 0.10;
+        } else if (keyboardType.equals("Stenography")) {
+            boost += 0.20;
+        }
+
+        return boost;
+    }
+
+    private double calculateMistypeModifier(int index) {
+        double modifier = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Voice-to-Text")) {
+            modifier += 0.10;
+        }
+
+        if (keyboardType.equals("Touchscreen")) {
+            modifier += 0.10;
+        }
+
+        if (accessory.equals("Noise-Cancelling Headphones")) {
+            modifier -= 0.10;
+        }
+
+        return modifier;
+    }
+
+    private double calculateBurnoutModifier(int index) {
+        double modifier = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Touch Typist")) {
+            modifier += 0.03;
+        } else if (typingStyle.equals("Hunt & Peck")) {
+            modifier -= 0.03;
+        } else if (typingStyle.equals("Voice-to-Text")) {
+            modifier -= 0.03;
+        }
+
+        if (keyboardType.equals("Stenography")) {
+            modifier += 0.05;
+        }
+
+        if (accessory.equals("Energy Drink")) {
+            modifier += 0.03;
+        }
+
+        return modifier;
+    }
+
+    private int calculateBurnoutDurationModifier(int index) {
+        int modifier = 0;
+
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (keyboardType.equals("Stenography")) {
+            modifier += 1;
+        }
+
+        if (accessory.equals("Wrist Support")) {
+            modifier -= 1;
+        }
+
+        return modifier;
     }
 
     public static void main(String[] args) {

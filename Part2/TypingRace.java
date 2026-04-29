@@ -136,7 +136,6 @@ public class TypingRace
     }
 
 
-
     private void advanceTypist(Typist theTypist)
     {
 
@@ -163,7 +162,7 @@ public class TypingRace
         }
 
         // Mistype check — the probability should reflect the typist's accuracy
-        if (Math.random() < (1.0 - theTypist.getAccuracy()) * (1+ theTypist.getMistypeChanceModifier()))
+        if (Math.random()* (1- theTypist.getMistypeChanceModifier()) < (1.0 - theTypist.getAccuracy()))
         {      
             int SLIDE_BACK_AMOUNT = SLIDE_BACK_AMOUNT_ORIGINAL;
             
@@ -175,7 +174,7 @@ public class TypingRace
 
         // Burnout check — pushing too hard increases burnout risk
         // (probability scales with accuracy squared, capped at ~0.05)
-        if (Math.random() * (1+theTypist.getBurnoutChanceModifier()) < 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy())
+        if (Math.random() * (1-theTypist.getBurnoutChanceModifier()) < 0.05 * theTypist.getAccuracy() * theTypist.getAccuracy())
         {   
             int burnoutModifier = theTypist.getBurnoutDurationAdjustment();
             theTypist.burnOut(BURNOUT_DURATION+burnoutModifier);
@@ -185,6 +184,38 @@ public class TypingRace
 
     private double roundTwoDecimals(double value) {
         return Math.round(value * 100.0) / 100.0;
+    }
+
+    public Typist getTypist(int index) {
+        if (index >= 0 && index < typists.length) {
+            return typists[index];
+        }
+
+        return null;
+    }
+
+    public boolean isFinished() {
+        return finished;
+    }
+
+    public Typist getWinner() {
+        return winner;
+    }
+
+    public int getTurnNumber() {
+        return turnNumber;
+    }
+
+    public double getWinnerAccuracyBeforeBonus() {
+        return winnerAccuracyBeforeBonus;
+    }
+
+    public int getPassageLength() {
+        return passage.length();
+    }
+
+    public String getPassage() {
+        return passage;
     }
 
     public static void main(String[] args) {

@@ -1,14 +1,9 @@
 /**
- * The Class Typist is the class that defines one of the members of the competition, a Typist as the name entails,
- * this class gives the 6 variables that all typists have and the methods needed to access these values.  
  *
- * Starter code generously abandoned by Ty Posaurus, your predecessor,
- * who typed with two fingers and considered that "good enough".
- * He left a sticky note: "the slide-back thing is optional probably".
- * It is not optional. Good luck.
+ *
  *
  * @author Andrei Dodu
- * @version 1.0
+ * @version 2.0
  */
 
 package Part2;
@@ -59,11 +54,11 @@ public class Typist
     }
 
     public void recoverFromBurnout()
-    {
-        if (getBurnoutTurnsRemaining() == 0) {
+    {   
+        burnoutTurnsRemaining -= 1; 
+        if (getBurnoutTurnsRemaining() <= 0) {
             burnOut = false;
-        }else {
-            burnoutTurnsRemaining -= 1; 
+            burnoutTurnsRemaining= 0;
         }
     }
 
