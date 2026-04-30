@@ -1767,6 +1767,11 @@ public class TypingRaceGUI {
         wpmPoints = ((int)Math.round(wpm)/20)*5;
 
         points = winnerPoints + wpmPoints - burnoutCount * 2; 
+
+        if(points < 0) {
+            points = 0;
+        }
+        
         return points;
     }
 
