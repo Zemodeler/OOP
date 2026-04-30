@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class TypingRaceGUI {
     private JFrame frame;
@@ -528,9 +529,16 @@ public class TypingRaceGUI {
             createTypistDesignScreen();
         });
 
+        JButton comparisonButton = new JButton("Comparison View");
+        comparisonButton.addActionListener(e -> showComparisonViewDialog());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.add(backButton);
+        buttonPanel.add(comparisonButton);
+
         mainPanel.add(titleLabel, BorderLayout.NORTH);
         mainPanel.add(new JScrollPane(lanesPanel), BorderLayout.CENTER);
-        mainPanel.add(backButton, BorderLayout.SOUTH);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
 
         frame.setContentPane(mainPanel);
         frame.revalidate();
@@ -995,7 +1003,141 @@ public class TypingRaceGUI {
         }
     }
 
+    private void showComparisonViewDialog() {
+        if (raceHistories.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                frame,
+                "No race history available yet. Finish at least one race first.",
+                "Comparison View",
+                JOptionPane.INFORMATION_MESSAGE
+            );
+            return;
+        }
 
+        String[] metrics = {
+            "WPM",
+            "Accuracy Percentage",
+            "Burnout Count",
+            "Position"
+        };
+
+        JComboBox<String> metricComboBox = new JComboBox<>(metrics);
+
+        JTextArea comparisonArea = new JTextArea(18, 60);
+        comparisonArea.setEditable(false);
+        comparisonArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+
+        metricComboBox.addActionListener(e -> {
+            String selectedMetric = (String) metricComboBox.getSelectedItem();
+            comparisonArea.setText(buildComparisonText(selectedMetric));
+        });
+
+        comparisonArea.setText(buildComparisonText("WPM"));
+
+        JPanel comparisonPanel = new JPanel(new BorderLayout(8, 8));
+        comparisonPanel.add(new JLabel("Choose metric to compare:"), BorderLayout.NORTH);
+        comparisonPanel.add(metricComboBox, BorderLayout.CENTER);
+        comparisonPanel.add(new JScrollPane(comparisonArea), BorderLayout.SOUTH);
+
+        JOptionPane.showMessageDialog(
+            frame,
+            comparisonPanel,
+            "Comparison View",
+            JOptionPane.INFORMATION_MESSAGE
+        );
+    }
+
+    private String buildComparisonText(String metric) {
+        StringBuilder comparison = new StringBuilder();
+
+        comparison.append("Comparison Metric: ")
+                .append(metric)
+                .append("\n");
+
+        comparison.append("============================================================\n");
+
+        List<String> typistNames = new ArrayList<>(raceHistories.keySet());
+        Collections.sort(typistNames);
+
+        for (String typistName : typistNames) {
+            List<RaceHistoryRecord> history = raceHistories.get(typistName);
+
+            if (history == null || history.isEmpty()) {
+                continue;
+            }
+
+            RaceHistoryRecord latestRecord = history.get(history.size() - 1);
+
+            double latestValue = getMetricValue(latestRecord, metric);
+
+            comparison.append(typistName)
+                    .append("\n");
+
+            comparison.append("Latest ")
+                    .append(metric)
+                    .append(": ")
+                    .append(formatMetricValue(metric, latestValue))
+                    .append("\n");
+
+            if (history.size() >= 2) {
+                RaceHistoryRecord previousRecord = history.get(history.size() - 2);
+                double previousValue = getMetricValue(previousRecord, metric);
+                double change = latestValue - previousValue;
+
+                comparison.append("Change since previous race: ")
+                        .append(formatMetricChange(metric, change))
+                        .append("\n");
+            } else {
+                comparison.append("Change since previous race: first recorded race\n");
+            }
+
+            comparison.append("Races recorded: ")
+                    .append(history.size())
+                    .append("\n");
+
+            comparison.append("------------------------------------------------------------\n");
+        }
+
+        return comparison.toString();
+    }
+
+    private double getMetricValue(RaceHistoryRecord record, String metric) {
+        if (metric.equals("WPM")) {
+            return record.getWpm();
+        } else if (metric.equals("Accuracy Percentage")) {
+            return record.getAccuracyPercentage();
+        } else if (metric.equals("Burnout Count")) {
+            return record.getBurnoutCount();
+        } else if (metric.equals("Position")) {
+            return record.getPosition();
+        }
+
+        return 0.0;
+    }
+
+    private String formatMetricValue(String metric, double value) {
+        if (metric.equals("Burnout Count") || metric.equals("Position")) {
+            return String.valueOf((int) value);
+        }
+
+        if (metric.equals("Accuracy Percentage")) {
+            return String.format("%.2f%%", value);
+        }
+
+        return String.format("%.2f", value);
+    }
+
+    private String formatMetricChange(String metric, double change) {
+        if (metric.equals("Burnout Count") || metric.equals("Position")) {
+            return String.format("%+d", (int) change);
+        }
+
+        if (metric.equals("Accuracy Percentage")) {
+            return String.format("%+.2f%%", change);
+        }
+
+        return String.format("%+.2f", change);
+    }
 
     public static void main(String[] args) {
         TypingRaceGUI gui = new TypingRaceGUI();
