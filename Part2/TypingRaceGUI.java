@@ -10,7 +10,7 @@
 package Part2;
 
 import javax.swing.*;
-import javax.swing.border.Border;
+import javax.swing.table.DefaultTableModel;
 
 import java.awt.*;
 import javax.swing.text.*;
@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Collections;
+
 
 public class TypingRaceGUI {
     private JFrame frame;
@@ -57,6 +58,10 @@ public class TypingRaceGUI {
 
     private Map<String, Double> personalBestWPMs = new HashMap<>();
     private Map<String, List<RaceHistoryRecord>> raceHistories = new HashMap<>();
+    private Map<String, RewardProfile> rewardProfiles = new HashMap<>();
+
+    private JTable leaderboardTable;
+    private DefaultTableModel leaderboardTableModel;
     private int raceNumber = 0;
 
     private JTextPane[] passagePanes;
@@ -84,15 +89,119 @@ public class TypingRaceGUI {
         "Noise-Cancelling Headphones"
     };
 
-    public void startRaceGUI() {
-        frame = new JFrame("Typing Race Simulator");
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 700);
+    // PRIVATE CLASS FOR THE GRAPH PANELS 
 
-        createConfigurationScreen();
+    private class GraphPanel extends JPanel { // Extending JPanel to actually draw a graph, used a lot of internet help with this, as it's an optional and not really studied in class
+        private String graphType; // This should represent the Graph Type
+        private String typistName; // This is the name of the typist we're drawing the Graph for.
+        
+        public GraphPanel(String GraphPanel, String typistName) {
+            this.graphType = GraphPanel;   
+            this.typistName = typistName;
 
-        frame.setVisible(true);
+            setPreferredSize(new Dimension(700,400));
+            setBackground(Color.WHITE);
+        }
+
+        public void setGraphType(String graphType) {
+            this.graphType = graphType;
+            repaint();
+        }
+
+        public void setTypist(String typistName) {
+            this.typistName = typistName;
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) { // Calling this method means we need to redraw the graphs, not studied in class so used a lot of internet help (thank you stackOverflow)
+            super.paintComponent(g);
+
+            List<RaceHistoryRecord> history = raceHistories.get(typistName);
+            double maxValue = 0.0;
+
+            if (history == null) {
+                g.drawString("No history for Typist", 40, 40);
+                return;
+            }
+
+            final int leftMargin = 70;
+            final int rightMargin = 40;
+            final int topMargin = 40;
+            final int bottomMargin = 70;
+
+            final int graphWidth = getWidth() - leftMargin - rightMargin;
+            final int graphHeight = getHeight() - topMargin - bottomMargin;
+
+            int xAxisHeight = getHeight() - bottomMargin;
+            int yAxisPosition = leftMargin;
+
+            g.setColor(Color.BLACK);
+            g.setFont(new Font("Arial", Font.PLAIN, 12));
+            g.drawString(typistName + " " + graphType + " Graph History", leftMargin, 25);
+
+            g.drawLine(yAxisPosition, topMargin, yAxisPosition, xAxisHeight);
+            g.drawLine(yAxisPosition, xAxisHeight, getWidth() - rightMargin, xAxisHeight);
+
+            for (RaceHistoryRecord record : history) {
+                double newValue = getMetricValue(record, graphType);
+
+                if (newValue > maxValue) {
+                    maxValue = newValue;
+                }
+            }
+
+            if(graphType.equals("Accuracy Percentage")) {
+                maxValue = 100;
+            }
+
+            if(graphType.equals("Position")){
+                maxValue = selectedSeatCount;
+            }
+
+            if(maxValue <= 0.0) {
+                maxValue = 1.0;
+            }
+
+            int previousY = -1;
+            int previousX = -1; 
+            
+            for(int i = 0; i < history.size(); i++) {
+                RaceHistoryRecord record = history.get(i);
+                double value = getMetricValue(record, graphType);
+                
+                int x;
+                int y = xAxisHeight - (int) ((value / maxValue) * graphHeight);
+
+                if(history.size() == 1) {
+                    x = leftMargin + graphWidth /2;
+                }else {
+                    x = leftMargin + i * graphWidth / (history.size() - 1);
+                }
+
+                if(previousX != -1) {
+                    g.drawLine(previousX, previousY, x, y);
+                }
+
+                g.fillOval(x-4, y-4, 8, 8);
+                g.drawString("R " + record.getRaceNumber(), x-8, xAxisHeight+20);
+                g.drawString(formatMetricValue(graphType,value), x-15, y-8);
+
+                previousX = x;
+                previousY = y;
+            }
+        }
     }
+
+    /* GUI METHODS
+    
+    All of these boring methods make the GUI work
+    Including buttons and everything else
+    #weallhateworkingwithGUI
+    
+    They should be fonctional but very vital to the
+    code
+    */
 
     private void createConfigurationScreen() {
         JPanel mainPanel = new JPanel(new BorderLayout());
@@ -180,20 +289,6 @@ public class TypingRaceGUI {
         frame.repaint();
 
         updateConfigurationPreview();
-    }
-
-    private String getSelectedPassage() {
-        String selected = (String) passageComboBox.getSelectedItem();
-
-        if (selected.equals("Short Passage")) {
-            return SHORT_PASSAGE;
-        } else if (selected.equals("Medium Passage")) {
-            return MEDIUM_PASSAGE;
-        } else if (selected.equals("Long Passage")) {
-            return LONG_PASSAGE;
-        } else {
-            return customPassageArea.getText();
-        }
     }
 
     private void goToTypistDesignScreen() {
@@ -329,18 +424,6 @@ public class TypingRaceGUI {
         summaryArea.append("- Wrist Support: reduces burnout duration.\n");
         summaryArea.append("- Energy Drink: improves accuracy in the first half of the race, then reduces accuracy later.\n");
         summaryArea.append("- Noise-Cancelling Headphones: reduces mistype chance.\n");
-    }
-
-
-
-    private String getDefaultSymbol(int index) {
-        String[] symbols = {"①", "②", "③", "④", "⑤", "⑥"};
-
-        if (index >= 0 && index < symbols.length) {
-            return symbols[index];
-        } else {
-            return "?";
-        }
     }
 
     private void buildSymbolAndColourControls() {
@@ -537,10 +620,14 @@ public class TypingRaceGUI {
         JButton graphButton = new JButton("Graph View");
         graphButton.addActionListener(e -> showGraphViewDialog());
 
+        JButton leaderboardButton = new JButton("Leaderboard");
+        leaderboardButton.addActionListener(e -> showLeaderboardDialog());
+
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(backButton);
         buttonPanel.add(comparisonButton);
         buttonPanel.add(graphButton);
+        buttonPanel.add(leaderboardButton);
 
         mainPanel.add(titleLabel, BorderLayout.NORTH);
         mainPanel.add(new JScrollPane(lanesPanel), BorderLayout.CENTER);
@@ -652,6 +739,8 @@ public class TypingRaceGUI {
             stats.append("--------------------\n");
         }
 
+        updateRewardSystemAfterRace();
+
         JTextArea statsArea = new JTextArea(stats.toString());
         statsArea.setEditable(false);
         statsArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
@@ -664,29 +753,6 @@ public class TypingRaceGUI {
         );
     }
 
-    private String getTypistPersonalBestKey(Typist typist) {
-        return typist.getName().trim().toLowerCase();
-    }
-
-    private void updatePersonalBest(Typist typist, double wpm) {
-        String key = getTypistPersonalBestKey(typist);
-
-        if (!personalBestWPMs.containsKey(key)) {
-            personalBestWPMs.put(key, wpm);
-        } else if (wpm > personalBestWPMs.get(key)) {
-            personalBestWPMs.put(key, wpm);
-        }
-    }
-
-    private double getPersonalBest(Typist typist) {
-        String key = getTypistPersonalBestKey(typist);
-
-        if (!personalBestWPMs.containsKey(key)) {
-            return 0.0;
-        }
-
-        return personalBestWPMs.get(key);
-    }
 
     private void updateActualRaceScreen() {
         for (int i = 0; i < selectedSeatCount; i++) {
@@ -756,315 +822,6 @@ public class TypingRaceGUI {
             System.out.println("Could not update passage display.");
         }
     }
-
-    private String getTypistName(int index) {
-        String name = nameFields[index].getText();
-
-        if (name.trim().isEmpty()) {
-            return "Typist " + (index + 1);
-        }
-
-        return name;
-    }
-
-    private String getTypistSymbol(int index) {
-        String symbol = symbolFields[index].getText();
-
-        if (symbol.trim().isEmpty()) {
-            return getDefaultSymbol(index);
-        }
-
-        return symbol;
-    }
-
-    private double calculateAccuracyBoost(int index) {
-        double boost = 0.0;
-
-        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-
-        if (typingStyle.equals("Touch Typist")) {
-            boost += 0.10;
-        } else if (typingStyle.equals("Hunt & Peck")) {
-            boost -= 0.10;
-        } else if (typingStyle.equals("Phone Thumbs")) {
-            boost -= 0.05;
-        } else if (typingStyle.equals("Voice-to-Text")) {
-            boost += 0.05;
-        }
-
-        if (keyboardType.equals("Mechanical")) {
-            boost += 0.05;
-        } else if (keyboardType.equals("Touchscreen")) {
-            boost -= 0.05;
-        } else if (keyboardType.equals("Stenography")) {
-            boost += 0.10;
-        }
-
-        return boost;
-    }
-
-    private boolean checkEnergyDrink (int index) {
-        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
-
-        if (accessory.equals("Energy Drink")) {
-            return true;
-        }
-        return false;
-    }
-
-    private double calculateSpeedBoost(int index) {
-        double boost = 0.0;
-
-        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-
-        if (typingStyle.equals("Phone Thumbs")) {
-            boost += 0.10;
-        }
-
-        if (keyboardType.equals("Mechanical")) {
-            boost -= 0.05;
-        } else if (keyboardType.equals("Touchscreen")) {
-            boost += 0.10;
-        } else if (keyboardType.equals("Stenography")) {
-            boost += 0.20;
-        }
-
-        return boost;
-    }
-
-    private double calculateMistypeModifier(int index) {
-        double modifier = 0.0;
-
-        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
-
-        if (typingStyle.equals("Voice-to-Text")) {
-            modifier += 0.10;
-        }
-        if (keyboardType.equals("Touchscreen")) {
-            modifier += 0.15;
-        }
-        if (accessory.equals("Noise-Cancelling Headphones")) {
-            modifier -= 0.10;
-        }
-        return modifier;
-    }
-
-    private double calculateBurnoutModifier(int index) {
-        double modifier = 0.0;
-
-        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-
-        if (typingStyle.equals("Touch Typist")) {
-            modifier += 0.03;
-        } else if (typingStyle.equals("Hunt & Peck")) {
-            modifier -= 0.03;
-        } else if (typingStyle.equals("Voice-to-Text")) {
-            modifier -= 0.03;
-        }
-
-        if (keyboardType.equals("Stenography")) {
-            modifier += 0.15;
-        }
-
-        return modifier;
-    }
-
-    private int calculateBurnoutDurationModifier(int index) {
-        int modifier = 0;
-
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
-
-        if (keyboardType.equals("Stenography")) {
-            modifier += 1;
-        }
-
-        if (accessory.equals("Wrist Support")) {
-            modifier -= 2;
-        }
-
-        return modifier;
-    }
-
-    private class RaceHistoryRecord {
-        private int raceNumber;
-        private int position;
-        private double wpm;
-        private double accuracyPercentage;
-        private int burnoutCount;
-
-        public RaceHistoryRecord(int raceNumber, int position, double wpm, double accuracyPercentage, int burnoutCount) {
-            this.raceNumber = raceNumber;
-            this.position = position;
-            this.wpm = wpm;
-            this.accuracyPercentage = accuracyPercentage;
-            this.burnoutCount = burnoutCount;
-        }
-
-        public int getRaceNumber() {
-            return raceNumber;
-        }
-
-        public int getPosition() {
-            return position;
-        }
-
-        public double getWpm() {
-            return wpm;
-        }
-
-        public double getAccuracyPercentage() {
-            return accuracyPercentage;
-        }
-
-        public int getBurnoutCount() {
-            return burnoutCount;
-        }
-    }
-
-    private class GraphPanel extends JPanel { // Extending JPanel to actually draw a graph, used a lot of internet help with this, as it's an optional and not really studied in class
-        private String graphType; // This should represent the Graph Type
-        private String typistName; // This is the name of the typist we're drawing the Graph for.
-        
-        public GraphPanel(String GraphPanel, String typistName) {
-            this.graphType = GraphPanel;   
-            this.typistName = typistName;
-
-            setPreferredSize(new Dimension(700,400));
-            setBackground(Color.WHITE);
-        }
-
-        public void setGraphType(String graphType) {
-            this.graphType = graphType;
-            repaint();
-        }
-
-        public void setTypist(String typistName) {
-            this.typistName = typistName;
-            repaint();
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) { // Calling this method means we need to redraw the graphs, not studied in class so used a lot of internet help (thank you stackOverflow)
-            super.paintComponent(g);
-
-            List<RaceHistoryRecord> history = raceHistories.get(typistName);
-            double maxValue = 0.0;
-
-            if (history == null) {
-                g.drawString("No history for Typist", 40, 40);
-                return;
-            }
-
-            final int leftMargin = 70;
-            final int rightMargin = 40;
-            final int topMargin = 40;
-            final int bottomMargin = 70;
-
-            final int graphWidth = getWidth() - leftMargin - rightMargin;
-            final int graphHeight = getHeight() - topMargin - bottomMargin;
-
-            int xAxisHeight = getHeight() - bottomMargin;
-            int yAxisPosition = leftMargin;
-
-            g.setColor(Color.BLACK);
-            g.setFont(new Font("Arial", Font.PLAIN, 12));
-            g.drawString(typistName + " " + graphType + " Graph History", leftMargin, 25);
-
-            g.drawLine(yAxisPosition, topMargin, yAxisPosition, xAxisHeight);
-            g.drawLine(yAxisPosition, xAxisHeight, getWidth() - rightMargin, xAxisHeight);
-
-            for (RaceHistoryRecord record : history) {
-                double newValue = getMetricValue(record, graphType);
-
-                if (newValue > maxValue) {
-                    maxValue = newValue;
-                }
-            }
-
-            if(graphType.equals("Accuracy Percentage")) {
-                maxValue = 100;
-            }
-
-            if(graphType.equals("Position")){
-                maxValue = selectedSeatCount;
-            }
-
-            if(maxValue <= 0.0) {
-                maxValue = 1.0;
-            }
-
-            int previousY = -1;
-            int previousX = -1; 
-            
-            for(int i = 0; i < history.size(); i++) {
-                RaceHistoryRecord record = history.get(i);
-                double value = getMetricValue(record, graphType);
-                
-                int x;
-                int y = xAxisHeight - (int) ((value / maxValue) * graphHeight);
-
-                if(history.size() == 1) {
-                    x = leftMargin + graphWidth /2;
-                }else {
-                    x = leftMargin + i * graphWidth / (history.size() - 1);
-                }
-
-                if(previousX != -1) {
-                    g.drawLine(previousX, previousY, x, y);
-                }
-
-                g.fillOval(x-4, y-4, 8, 8);
-                g.drawString("R " + record.getRaceNumber(), x-8, xAxisHeight+20);
-                g.drawString(formatMetricValue(graphType,value), x-15, y-8);
-
-                previousX = x;
-                previousY = y;
-            }
-        }
-    }
-
-    private void addRaceHistory(Typist typist, int position, double wpm, double accuracyPercentage, int burnoutCount) {
-        String key = getTypistPersonalBestKey(typist); 
-
-        if(!raceHistories.containsKey(key)) {
-            raceHistories.put(key, new ArrayList<>());
-        }
-
-        RaceHistoryRecord record = new RaceHistoryRecord(raceNumber, position, wpm, accuracyPercentage, burnoutCount);
-
-        raceHistories.get(key).add(record);
-    }
-
-    private List<RaceHistoryRecord> getRaceHistory (Typist typist) {
-        String key = getTypistPersonalBestKey(typist);
-
-        if (!raceHistories.containsKey(key)) {
-            return new ArrayList<>();
-        }
-
-        return raceHistories.get(key);
-    }
-
-    private int calculatePosition(Typist targetTypist) {
-        int position = 1;
-
-        for (int i = 0; i < selectedSeatCount; i++) {
-            Typist otherTypist = race.getTypist(i);
-
-            if (otherTypist != targetTypist && otherTypist.getProgress() > targetTypist.getProgress()) {
-                position++;
-            }
-        }
-
-        return position;
-    }
-
 
     private void appendRaceHistory(StringBuilder stats, Typist typist) {
         List<RaceHistoryRecord> history = getRaceHistory(typist); 
@@ -1205,6 +962,119 @@ public class TypingRaceGUI {
 
     }
 
+    private void showLeaderboardDialog() {
+        JDialog leaderboardDialog = new JDialog(frame, "Leaderboard", true);
+        leaderboardDialog.setSize(850, 550);
+        leaderboardDialog.setLocationRelativeTo(frame);
+
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        JLabel titleLabel = new JLabel("Leaderboard & Rankings");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        titleLabel.setHorizontalAlignment(JLabel.CENTER);
+
+        JTabbedPane tabbedPane = new JTabbedPane();
+
+        tabbedPane.addTab("Leaderboard", createLeaderboardPanel());
+        tabbedPane.addTab("Reward Rules", createRewardRulesPanel());
+        tabbedPane.addTab("Selected Typist Details", createRewardDetailsPanel());
+
+        JButton refreshButton = new JButton("Refresh Leaderboard");
+        refreshButton.addActionListener(e -> refreshLeaderboardTable());
+
+        JButton closeButton = new JButton("Close");
+        closeButton.addActionListener(e -> leaderboardDialog.dispose());
+
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.add(refreshButton);
+        buttonPanel.add(closeButton);
+
+        mainPanel.add(titleLabel, BorderLayout.NORTH);
+        mainPanel.add(tabbedPane, BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        leaderboardDialog.setContentPane(mainPanel);
+
+        refreshLeaderboardTable();
+
+        leaderboardDialog.setVisible(true);
+    }
+    
+    private JPanel createLeaderboardPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+
+        String[] columns = {
+            "Rank",
+            "Typist",
+            "Total Points",
+            "Latest Points",
+            "Wins",
+            "Title",
+            "Badges",
+            "Rank Impact"
+        };
+
+        leaderboardTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        leaderboardTable = new JTable(leaderboardTableModel);
+        leaderboardTable.setFillsViewportHeight(true);
+        leaderboardTable.setRowHeight(24);
+        leaderboardTable.setFont(new Font("Arial", Font.PLAIN, 13));
+        leaderboardTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 13));
+
+        JScrollPane tableScrollPane = new JScrollPane(leaderboardTable);
+
+        JTextArea explanationArea = new JTextArea();
+        explanationArea.setEditable(false);
+        explanationArea.setLineWrap(true);
+        explanationArea.setWrapStyleWord(true);
+        explanationArea.setFont(new Font("Arial", Font.PLAIN, 13));
+        explanationArea.setText(
+            "This leaderboard ranks typists by cumulative reward points.\n" +
+            "Points, badges, titles, and rank impacts are calculated by the reward-system logic.\n" +
+            "The GUI only displays the current reward profiles."
+        );
+
+        panel.add(explanationArea, BorderLayout.NORTH);
+        panel.add(tableScrollPane, BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private void refreshLeaderboardTable() {
+        if (leaderboardTableModel == null) {
+            return;
+        }
+
+        leaderboardTableModel.setRowCount(0);
+
+        List<RewardProfile> profiles = getRewardProfilesForDisplay();
+
+        int rank = 1;
+
+        for (RewardProfile profile : profiles) {
+            Object[] row = {
+                rank,
+                profile.getTypistName(),
+                profile.getCumulativePoints(),
+                profile.getLatestPoints(),
+                profile.getWins(),
+                profile.getTitles(),
+                profile.getBadges(),
+                profile.getRankImpact()
+            };
+
+            leaderboardTableModel.addRow(row);
+            rank++;
+        }
+    }
+
     private String buildComparisonText(String metric) {
         StringBuilder comparison = new StringBuilder();
 
@@ -1259,6 +1129,387 @@ public class TypingRaceGUI {
         return comparison.toString();
     }
 
+    private JPanel createRewardRulesPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+
+        JTextArea rulesArea = new JTextArea();
+        rulesArea.setEditable(false);
+        rulesArea.setLineWrap(true);
+        rulesArea.setWrapStyleWord(true);
+        rulesArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+
+        rulesArea.setText(
+            "Leaderboard & Ranking System\n" +
+            "================================================\n\n" +
+
+            "Required features:\n" +
+            "- Award points after each race.\n" +
+            "- Track cumulative points across races.\n" +
+            "- Maintain a running leaderboard.\n" +
+            "- Award titles and badges for milestones.\n" +
+            "- Optionally apply rank impact to future races.\n\n" +
+
+            "Suggested point factors:\n" +
+            "- Finishing position\n" +
+            "- WPM achieved\n" +
+            "- Burnout penalties\n" +
+            "- Consecutive wins\n" +
+            "- No-burnout races\n\n" +
+
+            "This screen is display-only.\n" +
+            "The actual point calculation should be handled by your reward-system methods."
+        );
+
+        panel.add(new JScrollPane(rulesArea), BorderLayout.CENTER);
+
+        return panel;
+    }
+
+    private JPanel createRewardDetailsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+
+        JComboBox<String> typistComboBox = new JComboBox<>();
+
+        List<String> typistNames = new ArrayList<>(rewardProfiles.keySet());
+        Collections.sort(typistNames);
+
+        for (String typistName : typistNames) {
+            typistComboBox.addItem(typistName);
+        }
+
+        JTextArea detailsArea = new JTextArea(18, 60);
+        detailsArea.setEditable(false);
+        detailsArea.setLineWrap(true);
+        detailsArea.setWrapStyleWord(true);
+        detailsArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+
+        if (typistComboBox.getItemCount() > 0) {
+            String firstTypist = (String) typistComboBox.getSelectedItem();
+            detailsArea.setText(buildRewardDetailsText(firstTypist));
+        } else {
+            detailsArea.setText("No reward profiles available yet. Finish at least one race first.");
+        }
+
+        typistComboBox.addActionListener(e -> {
+            String selectedTypist = (String) typistComboBox.getSelectedItem();
+
+            if (selectedTypist != null) {
+                detailsArea.setText(buildRewardDetailsText(selectedTypist));
+            }
+        });
+
+        JPanel topPanel = new JPanel(new GridLayout(1, 2, 8, 8));
+        topPanel.add(new JLabel("Choose typist:"));
+        topPanel.add(typistComboBox);
+
+        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(new JScrollPane(detailsArea), BorderLayout.CENTER);
+
+        return panel;
+    }
+    
+    private String buildRewardDetailsText(String typistKey) {
+        RewardProfile profile = rewardProfiles.get(typistKey);
+
+        if (profile == null) {
+            return "No reward profile found for " + typistKey + ".";
+        }
+
+        StringBuilder details = new StringBuilder();
+
+        details.append("Reward Profile\n");
+        details.append("==============================\n\n");
+
+        details.append("Typist: ")
+            .append(profile.getTypistName())
+            .append("\n");
+
+        details.append("Total Points: ")
+            .append(profile.getCumulativePoints())
+            .append("\n");
+
+        details.append("Latest Race Points: ")
+            .append(profile.getLatestPoints())
+            .append("\n");
+
+        details.append("Wins: ")
+            .append(profile.getWins())
+            .append("\n");
+
+        details.append("Title: ")
+            .append(profile.getTitles())
+            .append("\n");
+
+        details.append("Badges: ")
+            .append(profile.getBadges())
+            .append("\n");
+
+        details.append("Rank Impact: ")
+            .append(profile.getRankImpact())
+            .append("\n\n");
+
+        details.append("Notes:\n");
+        details.append("- Points are updated after races by the reward-system logic.\n");
+        details.append("- Titles and badges should be assigned by your milestone methods.\n");
+        details.append("- Rank impact can be used later to affect future starting stats.\n");
+
+        return details.toString();
+    }
+
+
+    /* MODIFIER METHODS
+    
+    These methods have the main modifiers for the game
+    These can be treated as final variables as the only
+    way to change the values inside the game is through
+    these methods
+    
+    Very Important and useful for customisation
+    
+    */  
+
+    private double calculateAccuracyBoost(int index) {
+        double boost = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Touch Typist")) {
+            boost += 0.20;
+        } else if (typingStyle.equals("Hunt & Peck")) {
+            boost -= 0.10;
+        } else if (typingStyle.equals("Phone Thumbs")) {
+            boost -= 0.15;
+        } else if (typingStyle.equals("Voice-to-Text")) {
+            boost += 0.25;
+        }
+
+        if (keyboardType.equals("Mechanical")) {
+            boost += 0.15;
+        } else if (keyboardType.equals("Touchscreen")) {
+            boost -= 0.25;
+        } else if (keyboardType.equals("Stenography")) {
+            boost += 0.40;
+        }
+
+
+        RewardProfile typistProfile = rewardProfiles.get(getTypistPersonalBestKey(race.getTypist(index)));
+        boost = calculateRankImpact(typistProfile, "Accuracy",boost);
+
+        return boost;
+    }
+
+    private boolean checkEnergyDrink (int index) {
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (accessory.equals("Energy Drink")) {
+            return true;
+        }
+        return false;
+    }
+
+    private double calculateSpeedBoost(int index) {
+        double boost = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Phone Thumbs")) {
+            boost += 0.20;
+        }
+
+        if (keyboardType.equals("Mechanical")) {
+            boost -= 0.10;
+        } else if (keyboardType.equals("Touchscreen")) {
+            boost += 0.40;
+        } else if (keyboardType.equals("Stenography")) {
+            boost -= 0.20;
+        }
+
+        RewardProfile typistProfile = rewardProfiles.get(getTypistPersonalBestKey(race.getTypist(index)));
+        boost = calculateRankImpact(typistProfile, "Speed",boost);
+
+        return boost;
+    }
+
+    private double calculateMistypeModifier(int index) {
+        double boost = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Voice-to-Text")) {
+            boost += 0.25;
+        }
+        if (keyboardType.equals("Touchscreen")) {
+            boost += 0.20;
+        }
+        if (accessory.equals("Noise-Cancelling Headphones")) {
+            boost -= 0.20;
+        }
+
+        RewardProfile typistProfile = rewardProfiles.get(getTypistPersonalBestKey(race.getTypist(index)));
+        boost = calculateRankImpact(typistProfile, "Mistype",boost);
+
+        return boost;
+    }
+
+    private double calculateBurnoutModifier(int index) {
+        double modifier = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Touch Typist")) {
+            modifier += 0.10;
+        } else if (typingStyle.equals("Hunt & Peck")) {
+            modifier -= 0.25;
+        } else if (typingStyle.equals("Voice-to-Text")) {
+            modifier -= 0.10;
+        }
+
+        if (keyboardType.equals("Stenography")) {
+            modifier += 0.15;
+        }
+
+        RewardProfile typistProfile = rewardProfiles.get(getTypistPersonalBestKey(race.getTypist(index)));
+        modifier = calculateRankImpact(typistProfile, "Accuracy",modifier);
+
+        return modifier;
+    }
+
+    private int calculateBurnoutDurationModifier(int index) {
+        int modifier = 0;
+
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (keyboardType.equals("Stenography")) {
+            modifier += 1;
+        }
+
+        if (accessory.equals("Wrist Support")) {
+            modifier -= 2;
+        }
+
+        return modifier;
+    }
+
+
+    /*  HELPER METHODS 
+        All Helper Methods that help the GUI code fonction
+        Organised like this for easier access and know how
+
+        Most of these Helper Methods are single case use only 
+        but some of these are reusable and very important
+    */
+
+
+    private String getTypistName(int index) {
+        String name = nameFields[index].getText();
+
+        if (name.trim().isEmpty()) {
+            return "Typist " + (index + 1);
+        }
+
+        return name;
+    }
+
+    private String getTypistSymbol(int index) {
+        String symbol = symbolFields[index].getText();
+
+        if (symbol.trim().isEmpty()) {
+            return getDefaultSymbol(index);
+        }
+
+        return symbol;
+    }
+
+    private void addRaceHistory(Typist typist, int position, double wpm, double accuracyPercentage, int burnoutCount) {
+        String key = getTypistPersonalBestKey(typist); 
+
+        if(!raceHistories.containsKey(key)) {
+            raceHistories.put(key, new ArrayList<>());
+        }
+
+        RaceHistoryRecord record = new RaceHistoryRecord(raceNumber, position, wpm, accuracyPercentage, burnoutCount);
+
+        raceHistories.get(key).add(record);
+    }
+
+    private List<RaceHistoryRecord> getRaceHistory (Typist typist) {
+        String key = getTypistPersonalBestKey(typist);
+
+        if (!raceHistories.containsKey(key)) {
+            return new ArrayList<>();
+        }
+
+        return raceHistories.get(key);
+    }
+
+    private int calculatePosition(Typist targetTypist) {
+        int position = 1;
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            Typist otherTypist = race.getTypist(i);
+
+            if (otherTypist != targetTypist && otherTypist.getProgress() > targetTypist.getProgress()) {
+                position++;
+            }
+        }
+
+        return position;
+    }
+
+    private String getTypistPersonalBestKey(Typist typist) {
+        return typist.getName().trim();
+    }
+
+    private void updatePersonalBest(Typist typist, double wpm) {
+        String key = getTypistPersonalBestKey(typist);
+
+        if (!personalBestWPMs.containsKey(key)) {
+            personalBestWPMs.put(key, wpm);
+        } else if (wpm > personalBestWPMs.get(key)) {
+            personalBestWPMs.put(key, wpm);
+        }
+    }
+
+    private double getPersonalBest(Typist typist) {
+        String key = getTypistPersonalBestKey(typist);
+
+        if (!personalBestWPMs.containsKey(key)) {
+            return 0.0;
+        }
+
+        return personalBestWPMs.get(key);
+    }
+
+    private String getSelectedPassage() {
+        String selected = (String) passageComboBox.getSelectedItem();
+
+        if (selected.equals("Short Passage")) {
+            return SHORT_PASSAGE;
+        } else if (selected.equals("Medium Passage")) {
+            return MEDIUM_PASSAGE;
+        } else if (selected.equals("Long Passage")) {
+            return LONG_PASSAGE;
+        } else {
+            return customPassageArea.getText();
+        }
+    }
+
+    private String getDefaultSymbol(int index) {
+        String[] symbols = {"①", "②", "③", "④", "⑤", "⑥"};
+
+        if (index >= 0 && index < symbols.length) {
+            return symbols[index];
+        } else {
+            return "?";
+        }
+    }
+
     private double getMetricValue(RaceHistoryRecord record, String metric) {
         if (metric.equals("WPM")) {
             return record.getWpm();
@@ -1295,6 +1546,213 @@ public class TypingRaceGUI {
         }
 
         return String.format("%+.2f", change);
+    } 
+
+    private List<RewardProfile> getRewardProfilesForDisplay() {
+        List<RewardProfile> profiles = new ArrayList<>(rewardProfiles.values());
+
+        Collections.sort(profiles, (profileA, profileB) -> {
+            return profileB.getCumulativePoints() - profileA.getCumulativePoints();
+        });
+
+        return profiles;
+    }
+
+
+    private void updateRewardSystemAfterRace() {
+
+        for(int i = 0; i < selectedSeatCount; i++) {
+            Typist typist = race.getTypist(i);
+            String typistKey = getTypistPersonalBestKey(typist);
+            String typistDisplay = typist.getName();
+
+            ensureRewardProfileExists(typistKey, typistDisplay);
+            RewardProfile typistProfile = rewardProfiles.get(typistKey);
+
+
+            RaceHistoryRecord typistHistory = getRaceHistory(typist).get(getRaceHistory(typist).size() - 1);
+            double wpm = typistHistory.getWpm();
+            // double accuracy = typistHistory.getAccuracyPercentage();
+            int burnoutCount = typistHistory.getBurnoutCount();
+            int position = typistHistory.getPosition();
+
+            int latestPoints = calculateRewardPoints(position, wpm,burnoutCount);
+
+            typistProfile.setLatestPoints(latestPoints);
+            typistProfile.setCumulativePoints(typistProfile.getCumulativePoints()+typistProfile.getLatestPoints());
+
+            if (position == 1) {
+                typistProfile.setWins(typistProfile.getWins()+1);
+            }
+            assignRewardTitle(typistProfile, typist);
+            assignRewardBadges(typistProfile, typist);
+        }
+    }
+
+    private int calculateRewardPoints(int position, double wpm, int burnoutCount) { // Calculating Points with race statistics
+        int points;
+        int winnerPoints = 12;
+        int wpmPoints = 0;
+
+        for(int i = 1; i != position; i ++) {
+            winnerPoints -= 2;
+        }
+
+        wpmPoints = ((int)Math.round(wpm)/20)*5;
+
+        points = winnerPoints + wpmPoints - burnoutCount * 2; 
+        return points;
+    }
+
+    private void ensureRewardProfileExists(String typistKey, String displayName) {
+        if(!rewardProfiles.containsKey(typistKey)) {                    // If rewardProfiles does not contain typistKey,
+            RewardProfile typistProfile = new RewardProfile(displayName);// create a new RewardProfile and put it in the map.
+            rewardProfiles.put(typistKey, typistProfile);
+        }
+        
+    }
+
+    private void assignRewardTitle(RewardProfile profile, Typist typist) {
+        List <RaceHistoryRecord> history = getRaceHistory(typist);
+
+        int totalRaces = history.size();
+        double bestWPM = getPersonalBest(typist);
+        double accuracy = history.get(history.size()-1).getAccuracyPercentage();
+        int position = history.get(history.size()-1).getPosition();
+        int totalBurnouts = 0;
+        int noBurnOutRace = 0;
+
+        for(RaceHistoryRecord record : history) {
+            totalBurnouts += record.getBurnoutCount();
+            if(record.getBurnoutCount() == 0) {
+                noBurnOutRace += 1;
+            }
+        }
+
+        if (bestWPM >= 75 && !profile.getTitles().contains("Speed Demon")) {
+            profile.setTitle("Speed Demon");
+        }if (noBurnOutRace >= 5 && !profile.getTitles().contains("Iron Fingers")) {
+            profile.setTitle("Iron Fingers");
+        }if (accuracy >= 99 && !profile.getTitles().contains("Precision Master")) {
+            profile.setTitle("Precision Master");
+        }if (totalRaces >= 5 && !profile.getTitles().contains("Consistent Racer")) {
+            profile.setTitle("Consistent Racer");
+        }if (profile.getWins() >= 10 && !profile.getTitles().contains("Champion Typist")) {
+            profile.setTitle("Champion Typist");
+        }if (totalRaces >= 10 && !profile.getTitles().contains("Marathon Racer")) {
+            profile.setTitle("Marathon Racer");
+        }if (position >= 1 && !profile.getTitles().contains("Flawless Performer") && history.get(history.size()-1).getBurnoutCount() == 0) {
+            profile.setTitle("Flawless Performer");
+        }if (totalBurnouts >= 100 && !profile.getTitles().contains("Burnout Master")) {
+            profile.setTitle("Burnout Master");
+        }
+    }
+
+    private void assignRewardBadges(RewardProfile profile, Typist typist) {
+        List<RaceHistoryRecord> history = getRaceHistory(typist);
+
+        int totalRaces = history.size();
+        double bestWPM = getPersonalBest(typist);
+        int position = history.get(history.size()-1).getPosition();
+        int latestBurnouts = history.get(history.size() - 1).getBurnoutCount();
+
+        int podiumFinishes = 0;
+        int recoveryRaces = 0;
+
+        for (RaceHistoryRecord record : history) {
+            if (record.getPosition() <= 3 && selectedSeatCount > 3) {
+                podiumFinishes += 1;
+            }
+
+            if (record.getBurnoutCount() >= 7) {
+                recoveryRaces += 1;
+            }
+        }
+
+        if (profile.getWins() >= 1 && !profile.getBadges().contains("First Victory")) {
+            profile.setBadges("First Victory");
+        } if (latestBurnouts == 0 && !profile.getBadges().contains("No Burnout Badge")) {
+            profile.setBadges("No Burnout Badge");
+        } if (position <= 3 && history.get(history.size() - 1).getWpm() < 50 && !profile.getBadges().contains("Underdog Badge")) {
+            profile.setBadges("Underdog Badge");
+        } if (position == 1 && history.get(history.size() - 1).getWpm() < bestWPM && !profile.getBadges().contains("Clutch Finisher")&& latestBurnouts >= 5 )  {
+            profile.setBadges("Clutch Finisher");
+        } if (podiumFinishes >= 3 && !profile.getBadges().contains("Podium Finisher")) {
+            profile.setBadges("Podium Finisher");
+        } if (recoveryRaces >= 1 && !profile.getBadges().contains("Recovery Badge")) {
+            profile.setBadges("Recovery Badge");
+        } if (totalRaces >= 2 && bestWPM >= history.get(history.size() - 1).getWpm() && !profile.getBadges().contains("Personal Best Badge")) {
+            profile.setBadges("Personal Best Badge");
+        }
+    }
+
+    private double calculateRankImpact(RewardProfile profile, String Modifier, double boost ) {
+        if(Modifier.equals("Accuracy")) {
+            if(profile.getTitles().contains("Precision Master")) {
+                boost+= 0.10;
+            }if(profile.getTitles().contains("Flawless Performer")) {
+                boost+= 0.10;
+            }if(profile.getBadges().contains("Underdog Badge")) {
+                boost+= 0.05;
+            }if(profile.getBadges().contains("Clutch Finisher")) {
+                boost+= 0.02;
+            }if(profile.getBadges().contains("First Victory")) {
+                boost+= 0.03;
+            }
+        }else if(Modifier.equals("Speed")) {
+            if(profile.getTitles().contains("Speed Demon")) {
+                boost+= 0.10;
+            }if(profile.getTitles().contains("Marathon Typist")) {
+                boost+= 0.05;
+            }if(profile.getBadges().contains("Podium Finisher")) {
+                boost+= 0.02;
+            }if(profile.getBadges().contains("Personal Best")) {
+                boost+= 0.02;
+            }
+        }else if(Modifier.equals("Mistype")) {
+            if(profile.getTitles().contains("Precision Master")) {
+                boost-= 0.05;
+            }if(profile.getTitles().contains("Flawless Performer")) {
+                boost-= 0.05;
+            }if(profile.getBadges().contains("Clutch Finisher")) {
+                boost-= 0.02;
+            }if(profile.getTitles().contains("Marathon Typist")) {
+                boost-= 0.10;
+            }if(profile.getTitles().contains("Iron Fingers")) {
+                boost-= 0.05;
+            }
+        }else if(Modifier.equals("BurnoutChance")) {
+            if(profile.getTitles().contains("Iron Fingers")) {
+                boost-= 0.10;
+            }if(profile.getBadges().contains("Burnout Master")) {
+                boost-= 0.20;
+            }if(profile.getTitles().contains("Flawless Performer")) {
+                boost-= 0.05;
+            }if(profile.getBadges().contains("No Burnout Badge")) {
+                boost-= 0.05;
+            }if(profile.getBadges().contains("Recovery Badge")) {
+                boost-= 0.05;
+            }
+            
+        }else if(Modifier.equals("RewardPoints")) {
+            if(profile.getTitles().contains("Champion Typist")) {
+                boost+= 5;
+            }if(profile.getTitles().contains("Consistent Racer")) {
+                boost+= 2;
+            }
+        }
+
+        return boost;
+    }
+
+    public void startRaceGUI() {
+        frame = new JFrame("Typing Race Simulator");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(800, 700);
+
+        createConfigurationScreen();
+
+        frame.setVisible(true);
     }
 
     public static void main(String[] args) {
