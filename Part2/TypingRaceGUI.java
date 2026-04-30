@@ -10,6 +10,8 @@
 package Part2;
 
 import javax.swing.*;
+import javax.swing.border.Border;
+
 import java.awt.*;
 import javax.swing.text.*;
 import java.util.Map;
@@ -532,9 +534,13 @@ public class TypingRaceGUI {
         JButton comparisonButton = new JButton("Comparison View");
         comparisonButton.addActionListener(e -> showComparisonViewDialog());
 
+        JButton graphButton = new JButton("Graph View");
+        graphButton.addActionListener(e -> showGraphViewDialog());
+
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(backButton);
         buttonPanel.add(comparisonButton);
+        buttonPanel.add(graphButton);
 
         mainPanel.add(titleLabel, BorderLayout.NORTH);
         mainPanel.add(new JScrollPane(lanesPanel), BorderLayout.CENTER);
@@ -838,15 +844,12 @@ public class TypingRaceGUI {
         if (typingStyle.equals("Voice-to-Text")) {
             modifier += 0.10;
         }
-
         if (keyboardType.equals("Touchscreen")) {
             modifier += 0.15;
         }
-
         if (accessory.equals("Noise-Cancelling Headphones")) {
             modifier -= 0.10;
         }
-
         return modifier;
     }
 
@@ -921,6 +924,108 @@ public class TypingRaceGUI {
 
         public int getBurnoutCount() {
             return burnoutCount;
+        }
+    }
+
+    private class GraphPanel extends JPanel { // Extending JPanel to actually draw a graph, used a lot of internet help with this, as it's an optional and not really studied in class
+        private String graphType; // This should represent the Graph Type
+        private String typistName; // This is the name of the typist we're drawing the Graph for.
+        
+        public GraphPanel(String GraphPanel, String typistName) {
+            this.graphType = GraphPanel;   
+            this.typistName = typistName;
+
+            setPreferredSize(new Dimension(700,400));
+            setBackground(Color.WHITE);
+        }
+
+        public void setGraphType(String graphType) {
+            this.graphType = graphType;
+            repaint();
+        }
+
+        public void setTypist(String typistName) {
+            this.typistName = typistName;
+            repaint();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) { // Calling this method means we need to redraw the graphs, not studied in class so used a lot of internet help (thank you stackOverflow)
+            super.paintComponent(g);
+
+            List<RaceHistoryRecord> history = raceHistories.get(typistName);
+            double maxValue = 0.0;
+
+            if (history == null) {
+                g.drawString("No history for Typist", 40, 40);
+                return;
+            }
+
+            final int leftMargin = 70;
+            final int rightMargin = 40;
+            final int topMargin = 40;
+            final int bottomMargin = 70;
+
+            final int graphWidth = getWidth() - leftMargin - rightMargin;
+            final int graphHeight = getHeight() - topMargin - bottomMargin;
+
+            int xAxisHeight = getHeight() - bottomMargin;
+            int yAxisPosition = leftMargin;
+
+            g.setColor(Color.BLACK);
+            g.setFont(new Font("Arial", Font.PLAIN, 12));
+            g.drawString(typistName + " " + graphType + " Graph History", leftMargin, 25);
+
+            g.drawLine(yAxisPosition, topMargin, yAxisPosition, xAxisHeight);
+            g.drawLine(yAxisPosition, xAxisHeight, getWidth() - rightMargin, xAxisHeight);
+
+            for (RaceHistoryRecord record : history) {
+                double newValue = getMetricValue(record, graphType);
+
+                if (newValue > maxValue) {
+                    maxValue = newValue;
+                }
+            }
+
+            if(graphType.equals("Accuracy Percentage")) {
+                maxValue = 100;
+            }
+
+            if(graphType.equals("Position")){
+                maxValue = selectedSeatCount;
+            }
+
+            if(maxValue <= 0.0) {
+                maxValue = 1.0;
+            }
+
+            int previousY = -1;
+            int previousX = -1; 
+            
+            for(int i = 0; i < history.size(); i++) {
+                RaceHistoryRecord record = history.get(i);
+                double value = getMetricValue(record, graphType);
+                
+                int x;
+                int y = xAxisHeight - (int) ((value / maxValue) * graphHeight);
+
+                if(history.size() == 1) {
+                    x = leftMargin + graphWidth /2;
+                }else {
+                    x = leftMargin + i * graphWidth / (history.size() - 1);
+                }
+
+                if(previousX != -1) {
+                    g.drawLine(previousX, previousY, x, y);
+                }
+
+                g.fillOval(x-4, y-4, 8, 8);
+                g.drawString("R " + record.getRaceNumber(), x-8, xAxisHeight+20);
+                g.drawString(formatMetricValue(graphType,value), x-15, y-8);
+
+                previousX = x;
+                previousY = y;
+            }
         }
     }
 
@@ -1045,6 +1150,59 @@ public class TypingRaceGUI {
             "Comparison View",
             JOptionPane.INFORMATION_MESSAGE
         );
+    }
+
+    private void showGraphViewDialog() {
+        if (raceHistories.isEmpty()) {
+            JOptionPane.showMessageDialog(
+                frame,
+                "No race history available yet. Finish at least one race first.",
+                "Graph View",
+                JOptionPane.INFORMATION_MESSAGE
+            );
+            return;
+        }
+
+        String[] metrics = {
+            "WPM",
+            "Accuracy Percentage",
+            "Burnout Count",
+            "Position"
+        };
+
+        List<String> typistNames = new ArrayList<>(raceHistories.keySet());
+        Collections.sort(typistNames);
+        
+        JComboBox<String> metricComboBox = new JComboBox<>(metrics);
+        JComboBox<String> typistComboBox = new JComboBox<>(typistNames.toArray(new String[0]));
+        
+
+        GraphPanel graphArea = new GraphPanel( (String) metricComboBox.getSelectedItem(), (String) typistComboBox.getSelectedItem());
+        graphArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+
+
+        metricComboBox.addActionListener(e -> {
+            graphArea.setGraphType( (String) metricComboBox.getSelectedItem());
+        });
+
+        typistComboBox.addActionListener(e -> {
+            graphArea.setTypist( (String) typistComboBox.getSelectedItem());
+        });
+
+        JPanel graphPanel = new JPanel(new BorderLayout(8,8));
+        JPanel controlPanel = new JPanel(new GridLayout(2,2,8,8));
+
+        controlPanel.add(new JLabel("Choose Typist"));
+        controlPanel.add(typistComboBox);
+
+        controlPanel.add(new JLabel("Choose Metric"));
+        controlPanel.add(metricComboBox);
+
+        graphPanel.add(controlPanel, BorderLayout.NORTH);
+        graphPanel.add(graphArea, BorderLayout.CENTER);
+
+        JOptionPane.showMessageDialog(frame, graphPanel,"Graph View", JOptionPane.INFORMATION_MESSAGE);
+
     }
 
     private String buildComparisonText(String metric) {
