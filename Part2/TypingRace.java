@@ -18,14 +18,14 @@ public class TypingRace
     private boolean caffeineModeEnabled;
     private boolean nightShiftEnabled;
 
-    private static final double MISTYPE_BASE_CHANCE = 0.2;
+    private static final double MISTYPE_BASE_CHANCE = 0.05;
     private static final int    SLIDE_BACK_AMOUNT_ORIGINAL   = 2;
     private static final int    BURNOUT_DURATION     = 3;
     private static final double ACCURACY     = 0.7;
     private static final double SPEED = 1.0; 
     private static final double CAFFEINE_BOOST = 0.2;
     private static final double CAFFEINE_BURNOUT = 0.05;
-    private static final double ENERGY_BOOST = 0.2;
+    private static final double ENERGY_BOOST = 0.5;
     
     private boolean finished;
     private Typist winner;
@@ -148,7 +148,7 @@ public class TypingRace
             }
 
         // Mistype check — the probability should reflect the typist's accuracy
-        if (Math.random() < (1.0 - theTypist.getAccuracy()) * theTypist.getMistypeChanceModifier())
+        if (Math.random() <  theTypist.getMistypeChanceModifier())
         {      
             int SLIDE_BACK_AMOUNT = SLIDE_BACK_AMOUNT_ORIGINAL;
             
