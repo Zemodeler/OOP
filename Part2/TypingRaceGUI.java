@@ -14,6 +14,8 @@ import java.awt.*;
 import javax.swing.text.*;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 
 public class TypingRaceGUI {
     private JFrame frame;
@@ -51,6 +53,8 @@ public class TypingRaceGUI {
     private Timer raceTimer;
 
     private Map<String, Double> personalBestWPMs = new HashMap<>();
+    private Map<String, List<RaceHistoryRecord>> raceHistories = new HashMap<>();
+    private int raceNumber = 0;
 
     private JTextPane[] passagePanes;
     private JLabel[] raceTypistLabels;
@@ -549,6 +553,7 @@ public class TypingRaceGUI {
 
     private void showRaceStatisticsDialog() {
         StringBuilder stats = new StringBuilder();
+        raceNumber++;
 
         Typist winner = race.getWinner();
 
@@ -585,9 +590,23 @@ public class TypingRaceGUI {
             double finalAccuracy = typist.getAccuracy();
             double accuracyChange = finalAccuracy - startingAccuracy;
 
+            int position = calculatePosition(typist);
+
+            addRaceHistory(
+                typist,
+                position,
+                wpm,
+                accuracyPercentage,
+                typist.getBurnoutCount()
+            );
+
             stats.append(typist.getSymbol())
                 .append(" ")
                 .append(typist.getName())
+                .append("\n");
+
+            stats.append("Position: ")
+                .append(position)
                 .append("\n");
 
             stats.append("Personal Best WPM: ")
@@ -614,6 +633,8 @@ public class TypingRaceGUI {
                 .append(String.format("%+.2f", accuracyChange))
                 .append(")\n");
 
+            appendRaceHistory(stats, typist);
+            
             stats.append("--------------------\n");
         }
 
@@ -858,6 +879,123 @@ public class TypingRaceGUI {
 
         return modifier;
     }
+
+    private class RaceHistoryRecord {
+        private int raceNumber;
+        private int position;
+        private double wpm;
+        private double accuracyPercentage;
+        private int burnoutCount;
+
+        public RaceHistoryRecord(int raceNumber, int position, double wpm, double accuracyPercentage, int burnoutCount) {
+            this.raceNumber = raceNumber;
+            this.position = position;
+            this.wpm = wpm;
+            this.accuracyPercentage = accuracyPercentage;
+            this.burnoutCount = burnoutCount;
+        }
+
+        public int getRaceNumber() {
+            return raceNumber;
+        }
+
+        public int getPosition() {
+            return position;
+        }
+
+        public double getWpm() {
+            return wpm;
+        }
+
+        public double getAccuracyPercentage() {
+            return accuracyPercentage;
+        }
+
+        public int getBurnoutCount() {
+            return burnoutCount;
+        }
+    }
+
+    private void addRaceHistory(Typist typist, int position, double wpm, double accuracyPercentage, int burnoutCount) {
+        String key = getTypistPersonalBestKey(typist); 
+
+        if(!raceHistories.containsKey(key)) {
+            raceHistories.put(key, new ArrayList<>());
+        }
+
+        RaceHistoryRecord record = new RaceHistoryRecord(raceNumber, position, wpm, accuracyPercentage, burnoutCount);
+
+        raceHistories.get(key).add(record);
+    }
+
+    private List<RaceHistoryRecord> getRaceHistory (Typist typist) {
+        String key = getTypistPersonalBestKey(typist);
+
+        if (!raceHistories.containsKey(key)) {
+            return new ArrayList<>();
+        }
+
+        return raceHistories.get(key);
+    }
+
+    private int calculatePosition(Typist targetTypist) {
+        int position = 1;
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            Typist otherTypist = race.getTypist(i);
+
+            if (otherTypist != targetTypist && otherTypist.getProgress() > targetTypist.getProgress()) {
+                position++;
+            }
+        }
+
+        return position;
+    }
+
+
+    private void appendRaceHistory(StringBuilder stats, Typist typist) {
+        List<RaceHistoryRecord> history = getRaceHistory(typist); 
+
+        stats.append("Race History Trend:\n");
+
+        if(history.isEmpty()) {
+            stats.append("No previous race history.\n");
+            return;
+        }
+
+        for (RaceHistoryRecord record : history) {
+            stats.append("Race ")
+                .append(record.getRaceNumber())
+                .append(" | Position: ")
+                .append(record.getPosition())
+                .append(" | WPM: ")
+                .append(String.format("%.2f", record.getWpm()))
+                .append(" | Accuracy: ")
+                .append(String.format("%.2f", record.getAccuracyPercentage()))
+                .append("%")
+                .append(" | Burnouts: ")
+                .append(record.getBurnoutCount())
+                .append("\n");
+        }
+
+        if (history.size() >= 2) {
+            RaceHistoryRecord previousRace = history.get(history.size() - 2);
+            RaceHistoryRecord latestRace = history.get(history.size() - 1);
+
+            double wpmChange = latestRace.getWpm() - previousRace.getWpm();
+            double accuracyChange = latestRace.getAccuracyPercentage() - previousRace.getAccuracyPercentage();
+
+            stats.append("Trend since previous race: WPM ")
+                .append(String.format("%+.2f", wpmChange))
+                .append(", Accuracy ")
+                .append(String.format("%+.2f", accuracyChange))
+                .append("%\n");
+        } else {
+            stats.append("Trend since previous race: first recorded race.\n");
+        }
+    }
+
+
 
     public static void main(String[] args) {
         TypingRaceGUI gui = new TypingRaceGUI();
