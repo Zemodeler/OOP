@@ -18,9 +18,7 @@ public class RewardProfile {
         this.latestPoints = 0;
         this.wins = 0;
         this.titles = new ArrayList<>();
-        this.titles.add("Unranked");
         this.badges = new ArrayList<>();
-        this.badges.add("None");
         this.rankImpact = "None";
     }
 

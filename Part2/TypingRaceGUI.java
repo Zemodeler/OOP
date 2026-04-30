@@ -1009,10 +1009,7 @@ public class TypingRaceGUI {
             "Typist",
             "Total Points",
             "Latest Points",
-            "Wins",
-            "Title",
-            "Badges",
-            "Rank Impact"
+            "Wins"
         };
 
         leaderboardTableModel = new DefaultTableModel(columns, 0) {
@@ -1036,9 +1033,9 @@ public class TypingRaceGUI {
         explanationArea.setWrapStyleWord(true);
         explanationArea.setFont(new Font("Arial", Font.PLAIN, 13));
         explanationArea.setText(
-            "This leaderboard ranks typists by cumulative reward points.\n" +
-            "Points, badges, titles, and rank impacts are calculated by the reward-system logic.\n" +
-            "The GUI only displays the current reward profiles."
+            "Leaderboard\n" +
+            "This table ranks typists by total cumulative reward points.\n" +
+            "Titles, badges, and rank-impact effects are shown in the Selected Typist Details tab."
         );
 
         panel.add(explanationArea, BorderLayout.NORTH);
@@ -1064,10 +1061,7 @@ public class TypingRaceGUI {
                 profile.getTypistName(),
                 profile.getCumulativePoints(),
                 profile.getLatestPoints(),
-                profile.getWins(),
-                profile.getTitles(),
-                profile.getBadges(),
-                profile.getRankImpact()
+                profile.getWins()
             };
 
             leaderboardTableModel.addRow(row);
@@ -1139,25 +1133,88 @@ public class TypingRaceGUI {
         rulesArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
 
         rulesArea.setText(
-            "Leaderboard & Ranking System\n" +
+            "Reward System A: Leaderboard & Ranking System\n" +
             "================================================\n\n" +
 
-            "Required features:\n" +
-            "- Award points after each race.\n" +
-            "- Track cumulative points across races.\n" +
-            "- Maintain a running leaderboard.\n" +
-            "- Award titles and badges for milestones.\n" +
-            "- Optionally apply rank impact to future races.\n\n" +
+            "Victory Points Formula\n" +
+            "----------------------\n" +
+            "Each typist receives reward points after every race.\n\n" +
+            "Base position points:\n" +
+            "- 1st place: 12 points\n" +
+            "- 2nd place: 10 points\n" +
+            "- 3rd place: 8 points\n" +
+            "- Each lower position loses 2 more points\n\n" +
+            "WPM bonus:\n" +
+            "- +5 points for every full 20 WPM achieved\n" +
+            "- Example: 40 WPM gives +10 points\n\n" +
+            "Burnout penalty:\n" +
+            "- Each burnout removes 2 points\n\n" +
+            "Final formula:\n" +
+            "Position Points + WPM Bonus - Burnout Penalty\n\n" +
 
-            "Suggested point factors:\n" +
-            "- Finishing position\n" +
-            "- WPM achieved\n" +
-            "- Burnout penalties\n" +
-            "- Consecutive wins\n" +
-            "- No-burnout races\n\n" +
+            "Titles\n" +
+            "------\n" +
+            "Speed Demon\n" +
+            "Requirement: Reach 75+ personal best WPM.\n" +
+            "Benefit: +0.10 speed modifier.\n\n" +
 
-            "This screen is display-only.\n" +
-            "The actual point calculation should be handled by your reward-system methods."
+            "Iron Fingers\n" +
+            "Requirement: Complete 5 races with 0 burnouts.\n" +
+            "Benefit: -0.05 mistype modifier and -0.10 burnout chance.\n\n" +
+
+            "Precision Master\n" +
+            "Requirement: Finish a race with 99%+ accuracy.\n" +
+            "Benefit: +0.10 accuracy and -0.05 mistype modifier.\n\n" +
+
+            "Consistent Racer\n" +
+            "Requirement: Complete 5 total races.\n" +
+            "Benefit: +2 reward points modifier.\n\n" +
+
+            "Champion Typist\n" +
+            "Requirement: Win 10 total races.\n" +
+            "Benefit: +5 reward points modifier.\n\n" +
+
+            "Marathon Racer\n" +
+            "Requirement: Complete 10 total races.\n" +
+            "Benefit: +0.05 speed modifier.\n\n" +
+
+            "Flawless Performer\n" +
+            "Requirement: Finish 1st with 0 burnouts.\n" +
+            "Benefit: +0.10 accuracy and -0.05 mistype modifier.\n\n" +
+
+            "Burnout Master\n" +
+            "Requirement: Reach 100 total burnouts.\n" +
+            "Benefit: -0.20 burnout chance.\n\n" +
+
+            "Badges\n" +
+            "------\n" +
+            "First Victory\n" +
+            "Requirement: Win at least 1 race.\n" +
+            "Benefit: +0.03 accuracy.\n\n" +
+
+            "No Burnout Badge\n" +
+            "Requirement: Finish a race with 0 burnouts.\n" +
+            "Benefit: -0.05 burnout chance.\n\n" +
+
+            "Underdog Badge\n" +
+            "Requirement: Finish top 3 with less than 50 WPM in a race with more than 3 typists.\n" +
+            "Benefit: +0.05 accuracy.\n\n" +
+
+            "Clutch Finisher\n" +
+            "Requirement: Win with WPM below your personal best and 5+ burnouts.\n" +
+            "Benefit: +0.02 accuracy and -0.02 mistype modifier.\n\n" +
+
+            "Podium Finisher\n" +
+            "Requirement: Finish top 3 at least 3 times in races with more than 3 typists.\n" +
+            "Benefit: +0.02 speed modifier.\n\n" +
+
+            "Recovery Badge\n" +
+            "Requirement: Finish top 3 after 7+ burnouts.\n" +
+            "Benefit: -0.05 burnout chance.\n\n" +
+
+            "Personal Best Badge\n" +
+            "Requirement: Record at least 2 races and match or beat your best WPM.\n" +
+            "Benefit: +0.02 speed modifier.\n"
         );
 
         panel.add(new JScrollPane(rulesArea), BorderLayout.CENTER);
@@ -1234,24 +1291,36 @@ public class TypingRaceGUI {
 
         details.append("Wins: ")
             .append(profile.getWins())
-            .append("\n");
-
-        details.append("Title: ")
-            .append(profile.getTitles())
-            .append("\n");
-
-        details.append("Badges: ")
-            .append(profile.getBadges())
-            .append("\n");
-
-        details.append("Rank Impact: ")
-            .append(profile.getRankImpact())
             .append("\n\n");
 
-        details.append("Notes:\n");
-        details.append("- Points are updated after races by the reward-system logic.\n");
-        details.append("- Titles and badges should be assigned by your milestone methods.\n");
-        details.append("- Rank impact can be used later to affect future starting stats.\n");
+        details.append("Titles Earned:\n");
+        if (profile.getTitles().isEmpty()) {
+            details.append("- None\n");
+        } else {
+            for (String title : profile.getTitles()) {
+                details.append("- ")
+                    .append(title)
+                    .append(" -> ")
+                    .append(getTitleBenefitText(title))
+                    .append("\n");
+            }
+        }
+
+        details.append("\nBadges Earned:\n");
+        if (profile.getBadges().isEmpty()) {
+            details.append("- None\n");
+        } else {
+            for (String badge : profile.getBadges()) {
+                details.append("- ")
+                    .append(badge)
+                    .append(" -> ")
+                    .append(getBadgeBenefitText(badge))
+                    .append("\n");
+            }
+        }
+
+        details.append("\nRank Impact Summary:\n");
+        details.append(buildRankImpactSummary(profile));
 
         return details.toString();
     }
@@ -1293,8 +1362,12 @@ public class TypingRaceGUI {
         }
 
 
-        RewardProfile typistProfile = rewardProfiles.get(getTypistPersonalBestKey(race.getTypist(index)));
-        boost = calculateRankImpact(typistProfile, "Accuracy",boost);
+        String typistKey = getTypistKey(index);
+        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+
+        if (typistProfile != null) {
+            boost = calculateRankImpact(typistProfile, "Accuracy", boost);
+        }
 
         return boost;
     }
@@ -1326,8 +1399,12 @@ public class TypingRaceGUI {
             boost -= 0.20;
         }
 
-        RewardProfile typistProfile = rewardProfiles.get(getTypistPersonalBestKey(race.getTypist(index)));
-        boost = calculateRankImpact(typistProfile, "Speed",boost);
+        String typistKey = getTypistKey(index);
+        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+
+        if (typistProfile != null) {
+            boost = calculateRankImpact(typistProfile, "Accuracy", boost);
+        }
 
         return boost;
     }
@@ -1349,8 +1426,12 @@ public class TypingRaceGUI {
             boost -= 0.20;
         }
 
-        RewardProfile typistProfile = rewardProfiles.get(getTypistPersonalBestKey(race.getTypist(index)));
-        boost = calculateRankImpact(typistProfile, "Mistype",boost);
+        String typistKey = getTypistKey(index);
+        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+
+        if (typistProfile != null) {
+            boost = calculateRankImpact(typistProfile, "Accuracy", boost);
+        }
 
         return boost;
     }
@@ -1373,8 +1454,12 @@ public class TypingRaceGUI {
             modifier += 0.15;
         }
 
-        RewardProfile typistProfile = rewardProfiles.get(getTypistPersonalBestKey(race.getTypist(index)));
-        modifier = calculateRankImpact(typistProfile, "Accuracy",modifier);
+        String typistKey = getTypistKey(index);
+        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+
+        if (typistProfile != null) {
+            modifier = calculateRankImpact(typistProfile, "BurnoutChance", modifier);
+        }
 
         return modifier;
     }
@@ -1404,6 +1489,85 @@ public class TypingRaceGUI {
         Most of these Helper Methods are single case use only 
         but some of these are reusable and very important
     */
+
+    private String getTitleBenefitText(String title) {
+        if (title.equals("Speed Demon")) {
+            return "+0.10 speed modifier";
+        } else if (title.equals("Iron Fingers")) {
+            return "-0.05 mistype modifier and -0.10 burnout chance";
+        } else if (title.equals("Precision Master")) {
+            return "+0.10 accuracy and -0.05 mistype modifier";
+        } else if (title.equals("Consistent Racer")) {
+            return "+2 reward points modifier";
+        } else if (title.equals("Champion Typist")) {
+            return "+5 reward points modifier";
+        } else if (title.equals("Marathon Racer")) {
+            return "+0.05 speed modifier";
+        } else if (title.equals("Flawless Performer")) {
+            return "+0.10 accuracy and -0.05 mistype modifier";
+        } else if (title.equals("Burnout Master")) {
+            return "-0.20 burnout chance";
+        }
+
+        return "No listed benefit";
+    }
+
+    private String getBadgeBenefitText(String badge) {
+        if (badge.equals("First Victory")) {
+            return "+0.03 accuracy";
+        } else if (badge.equals("No Burnout Badge")) {
+            return "-0.05 burnout chance";
+        } else if (badge.equals("Underdog Badge")) {
+            return "+0.05 accuracy";
+        } else if (badge.equals("Clutch Finisher")) {
+            return "+0.02 accuracy and -0.02 mistype modifier";
+        } else if (badge.equals("Podium Finisher")) {
+            return "+0.02 speed modifier";
+        } else if (badge.equals("Recovery Badge")) {
+            return "-0.05 burnout chance";
+        } else if (badge.equals("Personal Best Badge")) {
+            return "+0.02 speed modifier";
+        }
+
+        return "No listed benefit";
+    }
+
+    private String buildRankImpactSummary(RewardProfile profile) {
+        StringBuilder summary = new StringBuilder();
+
+        double accuracyBoost = calculateRankImpact(profile, "Accuracy", 0.0);
+        double speedBoost = calculateRankImpact(profile, "Speed", 0.0);
+        double mistypeModifier = calculateRankImpact(profile, "Mistype", 0.0);
+        double burnoutChanceModifier = calculateRankImpact(profile, "BurnoutChance", 0.0);
+        double rewardPointModifier = calculateRankImpact(profile, "RewardPoints", 0.0);
+
+        summary.append("- Accuracy impact: ")
+            .append(String.format("%+.2f", accuracyBoost))
+            .append("\n");
+
+        summary.append("- Speed impact: ")
+            .append(String.format("%+.2f", speedBoost))
+            .append("\n");
+
+        summary.append("- Mistype chance impact: ")
+            .append(String.format("%+.2f", mistypeModifier))
+            .append("\n");
+
+        summary.append("- Burnout chance impact: ")
+            .append(String.format("%+.2f", burnoutChanceModifier))
+            .append("\n");
+
+        summary.append("- Reward points impact: ")
+            .append(String.format("%+.2f", rewardPointModifier))
+            .append("\n");
+
+        return summary.toString();
+    }
+
+    private String getTypistKey(int index) { // fixing 
+        String name = getTypistName(index);
+        return name.trim();
+    }
 
 
     private String getTypistName(int index) {
@@ -1576,7 +1740,8 @@ public class TypingRaceGUI {
             int burnoutCount = typistHistory.getBurnoutCount();
             int position = typistHistory.getPosition();
 
-            int latestPoints = calculateRewardPoints(position, wpm,burnoutCount);
+            
+            int latestPoints = calculateRewardPoints(position, wpm,burnoutCount) + (int) calculateRankImpact(typistProfile, "RewardPoints", 0.00) ;
 
             typistProfile.setLatestPoints(latestPoints);
             typistProfile.setCumulativePoints(typistProfile.getCumulativePoints()+typistProfile.getLatestPoints());
@@ -1584,6 +1749,7 @@ public class TypingRaceGUI {
             if (position == 1) {
                 typistProfile.setWins(typistProfile.getWins()+1);
             }
+
             assignRewardTitle(typistProfile, typist);
             assignRewardBadges(typistProfile, typist);
         }
@@ -1664,7 +1830,7 @@ public class TypingRaceGUI {
                 podiumFinishes += 1;
             }
 
-            if (record.getBurnoutCount() >= 7) {
+            if (record.getBurnoutCount() >= 7 && position <= 3) {
                 recoveryRaces += 1;
             }
         }
@@ -1673,13 +1839,13 @@ public class TypingRaceGUI {
             profile.setBadges("First Victory");
         } if (latestBurnouts == 0 && !profile.getBadges().contains("No Burnout Badge")) {
             profile.setBadges("No Burnout Badge");
-        } if (position <= 3 && history.get(history.size() - 1).getWpm() < 50 && !profile.getBadges().contains("Underdog Badge")) {
+        } if (position <= 3 && history.get(history.size() - 1).getWpm() < 50 && !profile.getBadges().contains("Underdog Badge") && selectedSeatCount > 3) {
             profile.setBadges("Underdog Badge");
         } if (position == 1 && history.get(history.size() - 1).getWpm() < bestWPM && !profile.getBadges().contains("Clutch Finisher")&& latestBurnouts >= 5 )  {
             profile.setBadges("Clutch Finisher");
         } if (podiumFinishes >= 3 && !profile.getBadges().contains("Podium Finisher")) {
             profile.setBadges("Podium Finisher");
-        } if (recoveryRaces >= 1 && !profile.getBadges().contains("Recovery Badge")) {
+        } if (recoveryRaces >= 1 && !profile.getBadges().contains("Recovery Badge") && selectedSeatCount > 3) {
             profile.setBadges("Recovery Badge");
         } if (totalRaces >= 2 && bestWPM >= history.get(history.size() - 1).getWpm() && !profile.getBadges().contains("Personal Best Badge")) {
             profile.setBadges("Personal Best Badge");
@@ -1687,6 +1853,10 @@ public class TypingRaceGUI {
     }
 
     private double calculateRankImpact(RewardProfile profile, String Modifier, double boost ) {
+        if (profile == null) {
+            return boost;
+        }
+
         if(Modifier.equals("Accuracy")) {
             if(profile.getTitles().contains("Precision Master")) {
                 boost+= 0.10;
