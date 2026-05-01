@@ -52,6 +52,13 @@ public class TypingRaceGUI {
     private JButton[] colourButtons;
     private JComboBox<String>[] accessoryComboBoxes;
     private Color[] selectedColours;
+
+    private String[] savedTypistNames;
+    private String[] savedTypistSymbols;
+    private String[] savedTypingStyles;
+    private String[] savedKeyboardTypes;
+    private String[] savedAccessories;
+    private Color[] savedColours;
     
     private TypingRace race;
     private Timer raceTimer;
@@ -305,6 +312,14 @@ public class TypingRaceGUI {
         selectedCaffeineMode = caffeineModeCheckBox.isSelected();
         selectedNightShift = nightShiftCheckBox.isSelected();
 
+        selectedPassage = passage;
+        selectedSeatCount = (int) seatCountComboBox.getSelectedItem();
+        selectedAutocorrect = autocorrectCheckBox.isSelected();
+        selectedCaffeineMode = caffeineModeCheckBox.isSelected();
+        selectedNightShift = nightShiftCheckBox.isSelected();
+
+        initialiseSavedTypistChoices();
+
         createTypistDesignScreen();
     }
 
@@ -391,7 +406,7 @@ public class TypingRaceGUI {
         namePanel.setBorder(BorderFactory.createTitledBorder("Typist Names"));
 
         for (int i = 0; i < selectedSeatCount; i++) {
-            nameFields[i] = new JTextField("Typist " + (i + 1));
+            nameFields[i] = new JTextField(savedTypistNames[i]);
 
             namePanel.add(new JLabel("Typist " + (i + 1) + " Name:"));
             namePanel.add(nameFields[i]);
@@ -446,9 +461,9 @@ public class TypingRaceGUI {
         for (int i = 0; i < selectedSeatCount; i++) {
             final int index = i;
 
-            symbolFields[i] = new JTextField(getDefaultSymbol(i));
+            symbolFields[i] = new JTextField(savedTypistSymbols[i]);
 
-            selectedColours[i] = defaultColours[i];
+            selectedColours[i] = savedColours[i];
 
             colourButtons[i] = new JButton("Choose Colour");
             colourButtons[i].setBackground(selectedColours[i]);
@@ -483,6 +498,7 @@ public class TypingRaceGUI {
 
         for (int i = 0; i < selectedSeatCount; i++) {
             typingStyleComboBoxes[i] = new JComboBox<>(TYPING_STYLES);
+            typingStyleComboBoxes[i].setSelectedItem(savedTypingStyles[i]);
 
             typingStylePanel.add(new JLabel("Typist " + (i + 1) + " Typing Style:"));
             typingStylePanel.add(typingStyleComboBoxes[i]);
@@ -499,6 +515,7 @@ public class TypingRaceGUI {
 
         for (int i = 0; i < selectedSeatCount; i++) {
             keyboardTypeComboBoxes[i] = new JComboBox<>(KEYBOARD_TYPES);
+            keyboardTypeComboBoxes[i].setSelectedItem(savedKeyboardTypes[i]);
 
             keyboardTypePanel.add(new JLabel("Typist " + (i + 1) + " Keyboard Type:"));
             keyboardTypePanel.add(keyboardTypeComboBoxes[i]);
@@ -515,6 +532,7 @@ public class TypingRaceGUI {
 
         for (int i = 0; i < selectedSeatCount; i++) {
             accessoryComboBoxes[i] = new JComboBox<>(ACCESSORIES);
+            accessoryComboBoxes[i].setSelectedItem(savedAccessories[i]);
 
             accessoryPanel.add(new JLabel("Typist " + (i + 1) + " Accessory:"));
             accessoryPanel.add(accessoryComboBoxes[i]);
@@ -524,6 +542,8 @@ public class TypingRaceGUI {
     }
 
     private void startRaceFromDesignedTypists() {
+        saveTypistDesignChoices();
+
         createRaceFromDesignedTypists();
         createActualRaceScreen();
         startActualRaceTimer();
@@ -1292,6 +1312,10 @@ public class TypingRaceGUI {
         details.append("Wins: ")
             .append(profile.getWins())
             .append("\n\n");
+        details.append("Equipment / Customisation Boosts:\n");
+        details.append("--------------------------------\n");
+        details.append(buildEquipmentBoostText(typistKey));
+        details.append("\n");
 
         details.append("Titles Earned:\n");
         if (profile.getTitles().isEmpty()) {
@@ -1323,6 +1347,70 @@ public class TypingRaceGUI {
         details.append(buildRankImpactSummary(profile));
 
         return details.toString();
+    }
+
+    private String buildEquipmentBoostText(String typistKey) {
+        int index = getSavedTypistIndexByKey(typistKey);
+
+        if (index == -1) {
+            return "No saved equipment data found for this typist.\n";
+        }
+
+        String typingStyle = savedTypingStyles[index];
+        String keyboardType = savedKeyboardTypes[index];
+        String accessory = savedAccessories[index];
+
+        StringBuilder text = new StringBuilder();
+
+        text.append("Typing Style: ").append(typingStyle).append("\n");
+
+        if (typingStyle.equals("Touch Typist")) {
+            text.append("- +0.20 accuracy\n");
+            text.append("- +0.10 burnout chance\n");
+        } else if (typingStyle.equals("Hunt & Peck")) {
+            text.append("- -0.10 accuracy\n");
+            text.append("- -0.25 burnout chance\n");
+        } else if (typingStyle.equals("Phone Thumbs")) {
+            text.append("- -0.15 accuracy\n");
+            text.append("- +0.20 speed\n");
+        } else if (typingStyle.equals("Voice-to-Text")) {
+            text.append("- +0.25 accuracy\n");
+            text.append("- +0.25 mistype chance\n");
+            text.append("- -0.10 burnout chance\n");
+        }
+
+        text.append("\nKeyboard Type: ").append(keyboardType).append("\n");
+
+        if (keyboardType.equals("Mechanical")) {
+            text.append("- +0.15 accuracy\n");
+            text.append("- -0.10 speed\n");
+        } else if (keyboardType.equals("Membrane")) {
+            text.append("- No major bonus or penalty\n");
+        } else if (keyboardType.equals("Touchscreen")) {
+            text.append("- -0.25 accuracy\n");
+            text.append("- +0.40 speed\n");
+            text.append("- +0.20 mistype chance\n");
+        } else if (keyboardType.equals("Stenography")) {
+            text.append("- +0.40 accuracy\n");
+            text.append("- -0.20 speed\n");
+            text.append("- +0.15 burnout chance\n");
+            text.append("- +1 burnout duration\n");
+        }
+
+        text.append("\nAccessory: ").append(accessory).append("\n");
+
+        if (accessory.equals("None")) {
+            text.append("- No bonus or penalty\n");
+        } else if (accessory.equals("Wrist Support")) {
+            text.append("- -2 burnout duration\n");
+        } else if (accessory.equals("Energy Drink")) {
+            text.append("- Accuracy increases in the first half of the race\n");
+            text.append("- Accuracy decreases in the second half of the race\n");
+        } else if (accessory.equals("Noise-Cancelling Headphones")) {
+            text.append("- -0.20 mistype chance\n");
+        }
+
+        return text.toString();
     }
 
 
@@ -1489,6 +1577,71 @@ public class TypingRaceGUI {
         Most of these Helper Methods are single case use only 
         but some of these are reusable and very important
     */
+
+    private int getSavedTypistIndexByKey(String typistKey) {
+        if (savedTypistNames == null) {
+            return -1;
+        }
+
+        for (int i = 0; i < savedTypistNames.length; i++) {
+            if (savedTypistNames[i].trim().equals(typistKey.trim())) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private void saveTypistDesignChoices() {
+        for (int i = 0; i < selectedSeatCount; i++) {
+            savedTypistNames[i] = getTypistName(i);
+            savedTypistSymbols[i] = getTypistSymbol(i);
+            savedTypingStyles[i] = (String) typingStyleComboBoxes[i].getSelectedItem();
+            savedKeyboardTypes[i] = (String) keyboardTypeComboBoxes[i].getSelectedItem();
+            savedAccessories[i] = (String) accessoryComboBoxes[i].getSelectedItem();
+            savedColours[i] = selectedColours[i];
+        }
+    }
+
+
+    private Color getDefaultColour(int index) {
+        Color[] defaultColours = {
+            Color.BLUE,
+            Color.RED,
+            Color.GREEN,
+            Color.ORANGE,
+            Color.MAGENTA,
+            Color.CYAN
+        };
+
+        if (index >= 0 && index < defaultColours.length) {
+            return defaultColours[index];
+        }
+
+        return Color.GRAY;
+    }
+
+    private void initialiseSavedTypistChoices() {
+        if (savedTypistNames != null && savedTypistNames.length == selectedSeatCount) {
+            return;
+        }
+
+        savedTypistNames = new String[selectedSeatCount];
+        savedTypistSymbols = new String[selectedSeatCount];
+        savedTypingStyles = new String[selectedSeatCount];
+        savedKeyboardTypes = new String[selectedSeatCount];
+        savedAccessories = new String[selectedSeatCount];
+        savedColours = new Color[selectedSeatCount];
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            savedTypistNames[i] = "Typist " + (i + 1);
+            savedTypistSymbols[i] = getDefaultSymbol(i);
+            savedTypingStyles[i] = TYPING_STYLES[0];
+            savedKeyboardTypes[i] = KEYBOARD_TYPES[0];
+            savedAccessories[i] = ACCESSORIES[0];
+            savedColours[i] = getDefaultColour(i);
+        }
+    }
 
     private String getTitleBenefitText(String title) {
         if (title.equals("Speed Demon")) {
