@@ -70,7 +70,6 @@ public class TypingRaceGUI {
     private JComboBox<String> shopTypistComboBox;
     private JTextArea shopDetailsArea;
 
-    private JTable earningsTable;
     private DefaultTableModel earningsTableModel;
 
     private JTable leaderboardTable;
@@ -643,15 +642,11 @@ public class TypingRaceGUI {
         JButton leaderboardButton = new JButton("Leaderboard");
         leaderboardButton.addActionListener(e -> showLeaderboardDialog());
 
-        JButton sponsorButton = new JButton("Sponsors & Prizes");
-        sponsorButton.addActionListener(e -> showSponsorDialog());
-
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(backButton);
         buttonPanel.add(comparisonButton);
         buttonPanel.add(graphButton);
         buttonPanel.add(leaderboardButton);
-        buttonPanel.add(sponsorButton);
 
         mainPanel.add(titleLabel, BorderLayout.NORTH);
         mainPanel.add(new JScrollPane(lanesPanel), BorderLayout.CENTER);
@@ -990,25 +985,30 @@ public class TypingRaceGUI {
     }
 
     private void showLeaderboardDialog() {
-        JDialog leaderboardDialog = new JDialog(frame, "Leaderboard", true);
-        leaderboardDialog.setSize(850, 550);
+        JDialog leaderboardDialog = new JDialog(frame, "Leaderboard & Rewards", true);
+        leaderboardDialog.setSize(900, 600);
         leaderboardDialog.setLocationRelativeTo(frame);
 
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        JLabel titleLabel = new JLabel("Leaderboard & Rankings");
+        JLabel titleLabel = new JLabel("Leaderboard, Rewards & Shop");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
         titleLabel.setHorizontalAlignment(JLabel.CENTER);
 
         JTabbedPane tabbedPane = new JTabbedPane();
 
         tabbedPane.addTab("Leaderboard", createLeaderboardPanel());
-        tabbedPane.addTab("Reward Rules", createRewardRulesPanel());
         tabbedPane.addTab("Selected Typist Details", createRewardDetailsPanel());
+        tabbedPane.addTab("Rules", createRulesPanel());
+        tabbedPane.addTab("Upgrade Shop", createUpgradeShopPanel());
 
-        JButton refreshButton = new JButton("Refresh Leaderboard");
-        refreshButton.addActionListener(e -> refreshLeaderboardTable());
+        JButton refreshButton = new JButton("Refresh");
+        refreshButton.addActionListener(e -> {
+            refreshLeaderboardTable();
+            refreshEarningsTable();
+            updateShopDetailsArea();
+        });
 
         JButton closeButton = new JButton("Close");
         closeButton.addActionListener(e -> leaderboardDialog.dispose());
@@ -1024,6 +1024,7 @@ public class TypingRaceGUI {
         leaderboardDialog.setContentPane(mainPanel);
 
         refreshLeaderboardTable();
+        refreshEarningsTable();
 
         leaderboardDialog.setVisible(true);
     }
@@ -1036,7 +1037,9 @@ public class TypingRaceGUI {
             "Typist",
             "Total Points",
             "Latest Points",
-            "Wins"
+            "Wins",
+            "Total Money",
+            "Latest Money",
         };
 
         leaderboardTableModel = new DefaultTableModel(columns, 0) {
@@ -1061,8 +1064,7 @@ public class TypingRaceGUI {
         explanationArea.setFont(new Font("Arial", Font.PLAIN, 13));
         explanationArea.setText(
             "Leaderboard\n" +
-            "This table ranks typists by total cumulative reward points.\n" +
-            "Titles, badges, and rank-impact effects are shown in the Selected Typist Details tab."
+            "This table ranks typists by total reward points.\n"
         );
 
         panel.add(explanationArea, BorderLayout.NORTH);
@@ -1082,13 +1084,27 @@ public class TypingRaceGUI {
 
         int rank = 1;
 
-        for (RewardProfile profile : profiles) {
+        for (RewardProfile rewardProfile : profiles) {
+            String typistKey = rewardProfile.getTypistName();
+
+            SponsorProfile sponsorProfile = sponsorProfiles.get(typistKey);
+
+            int totalMoney = 0;
+            int latestMoney = 0;
+
+            if (sponsorProfile != null) {
+                totalMoney = sponsorProfile.getTotalEarnings();
+                latestMoney = sponsorProfile.getLatestEarnings();
+            }
+
             Object[] row = {
                 rank,
-                profile.getTypistName(),
-                profile.getCumulativePoints(),
-                profile.getLatestPoints(),
-                profile.getWins()
+                rewardProfile.getTypistName(),
+                rewardProfile.getCumulativePoints(),
+                rewardProfile.getLatestPoints(),
+                rewardProfile.getWins(),
+                totalMoney,
+                latestMoney,
             };
 
             leaderboardTableModel.addRow(row);
@@ -1150,105 +1166,6 @@ public class TypingRaceGUI {
         return comparison.toString();
     }
 
-    private JPanel createRewardRulesPanel() {
-        JPanel panel = new JPanel(new BorderLayout(8, 8));
-
-        JTextArea rulesArea = new JTextArea();
-        rulesArea.setEditable(false);
-        rulesArea.setLineWrap(true);
-        rulesArea.setWrapStyleWord(true);
-        rulesArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
-
-        rulesArea.setText(
-            "Leaderboard & Ranking System\n" +
-            "================================================\n\n" +
-
-            "Victory Points Formula\n" +
-            "----------------------\n" +
-            "Each typist receives reward points after every race.\n\n" +
-            "Base position points:\n" +
-            "- 1st place: 12 points\n" +
-            "- 2nd place: 10 points\n" +
-            "- 3rd place: 8 points\n" +
-            "- Each lower position loses 2 more points\n\n" +
-            "WPM bonus:\n" +
-            "- +5 points for every full 20 WPM achieved\n" +
-            "- Example: 40 WPM gives +10 points\n\n" +
-            "Burnout penalty:\n" +
-            "- Each burnout removes 2 points\n\n" +
-            "Final formula:\n" +
-            "Position Points + WPM Bonus - Burnout Penalty\n\n" +
-
-            "Titles\n" +
-            "------\n" +
-            "Speed Demon\n" +
-            "Requirement: Reach 75+ personal best WPM.\n" +
-            "Benefit: +0.10 speed modifier.\n\n" +
-
-            "Iron Fingers\n" +
-            "Requirement: Complete 5 races with 0 burnouts.\n" +
-            "Benefit: -0.05 mistype modifier and -0.10 burnout chance.\n\n" +
-
-            "Precision Master\n" +
-            "Requirement: Finish a race with 99%+ accuracy.\n" +
-            "Benefit: +0.10 accuracy and -0.05 mistype modifier.\n\n" +
-
-            "Consistent Racer\n" +
-            "Requirement: Complete 5 total races.\n" +
-            "Benefit: +2 reward points modifier.\n\n" +
-
-            "Champion Typist\n" +
-            "Requirement: Win 10 total races.\n" +
-            "Benefit: +5 reward points modifier.\n\n" +
-
-            "Marathon Racer\n" +
-            "Requirement: Complete 10 total races.\n" +
-            "Benefit: +0.05 speed modifier.\n\n" +
-
-            "Flawless Performer\n" +
-            "Requirement: Finish 1st with 0 burnouts.\n" +
-            "Benefit: +0.10 accuracy and -0.05 mistype modifier.\n\n" +
-
-            "Burnout Master\n" +
-            "Requirement: Reach 100 total burnouts.\n" +
-            "Benefit: -0.20 burnout chance.\n\n" +
-
-            "Badges\n" +
-            "------\n" +
-            "First Victory\n" +
-            "Requirement: Win at least 1 race.\n" +
-            "Benefit: +0.03 accuracy.\n\n" +
-
-            "No Burnout Badge\n" +
-            "Requirement: Finish a race with 0 burnouts.\n" +
-            "Benefit: -0.05 burnout chance.\n\n" +
-
-            "Underdog Badge\n" +
-            "Requirement: Finish top 3 with less than 50 WPM in a race with more than 3 typists.\n" +
-            "Benefit: +0.05 accuracy.\n\n" +
-
-            "Clutch Finisher\n" +
-            "Requirement: Win with WPM below your personal best and 5+ burnouts.\n" +
-            "Benefit: +0.02 accuracy and -0.02 mistype modifier.\n\n" +
-
-            "Podium Finisher\n" +
-            "Requirement: Finish top 3 at least 3 times in races with more than 3 typists.\n" +
-            "Benefit: +0.02 speed modifier.\n\n" +
-
-            "Recovery Badge\n" +
-            "Requirement: Finish top 3 after 7+ burnouts.\n" +
-            "Benefit: -0.05 burnout chance.\n\n" +
-
-            "Personal Best Badge\n" +
-            "Requirement: Record at least 2 races and match or beat your best WPM.\n" +
-            "Benefit: +0.02 speed modifier.\n"
-        );
-
-        panel.add(new JScrollPane(rulesArea), BorderLayout.CENTER);
-
-        return panel;
-    }
-
     private JPanel createRewardDetailsPanel() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
 
@@ -1261,7 +1178,7 @@ public class TypingRaceGUI {
             typistComboBox.addItem(typistName);
         }
 
-        JTextArea detailsArea = new JTextArea(18, 60);
+        JTextArea detailsArea = new JTextArea(22, 65);
         detailsArea.setEditable(false);
         detailsArea.setLineWrap(true);
         detailsArea.setWrapStyleWord(true);
@@ -1269,16 +1186,16 @@ public class TypingRaceGUI {
 
         if (typistComboBox.getItemCount() > 0) {
             String firstTypist = (String) typistComboBox.getSelectedItem();
-            detailsArea.setText(buildRewardDetailsText(firstTypist));
+            detailsArea.setText(buildTypistDetailsText(firstTypist));
         } else {
-            detailsArea.setText("No reward profiles available yet. Finish at least one race first.");
+            detailsArea.setText("No profiles available yet. Finish at least one race first.");
         }
 
         typistComboBox.addActionListener(e -> {
             String selectedTypist = (String) typistComboBox.getSelectedItem();
 
             if (selectedTypist != null) {
-                detailsArea.setText(buildRewardDetailsText(selectedTypist));
+                detailsArea.setText(buildTypistDetailsText(selectedTypist));
             }
         });
 
@@ -1292,69 +1209,6 @@ public class TypingRaceGUI {
         return panel;
     }
     
-    private String buildRewardDetailsText(String typistKey) {
-        RewardProfile profile = rewardProfiles.get(typistKey);
-
-        if (profile == null) {
-            return "No reward profile found for " + typistKey + ".";
-        }
-
-        StringBuilder details = new StringBuilder();
-
-        details.append("Reward Profile\n");
-        details.append("==============================\n\n");
-
-        details.append("Typist: ")
-            .append(profile.getTypistName())
-            .append("\n");
-
-        details.append("Total Points: ")
-            .append(profile.getCumulativePoints())
-            .append("\n");
-
-        details.append("Latest Race Points: ")
-            .append(profile.getLatestPoints())
-            .append("\n");
-
-        details.append("Wins: ")
-            .append(profile.getWins())
-            .append("\n\n");
-        details.append("Equipment / Customisation Boosts:\n");
-        details.append("--------------------------------\n");
-        details.append(buildEquipmentBoostText(typistKey));
-        details.append("\n");
-
-        details.append("Titles Earned:\n");
-        if (profile.getTitles().isEmpty()) {
-            details.append("- None\n");
-        } else {
-            for (String title : profile.getTitles()) {
-                details.append("- ")
-                    .append(title)
-                    .append(" -> ")
-                    .append(getTitleBenefitText(title))
-                    .append("\n");
-            }
-        }
-
-        details.append("\nBadges Earned:\n");
-        if (profile.getBadges().isEmpty()) {
-            details.append("- None\n");
-        } else {
-            for (String badge : profile.getBadges()) {
-                details.append("- ")
-                    .append(badge)
-                    .append(" -> ")
-                    .append(getBadgeBenefitText(badge))
-                    .append("\n");
-            }
-        }
-
-        details.append("\nRank Impact Summary:\n");
-        details.append(buildRankImpactSummary(profile));
-
-        return details.toString();
-    }
 
     private String buildEquipmentBoostText(String typistKey) {
         int index = getSavedTypistIndexByKey(typistKey);
@@ -1420,90 +1274,6 @@ public class TypingRaceGUI {
         return text.toString();
     }
 
-    private void showSponsorDialog() {
-        JDialog sponsorDialog = new JDialog(frame, "Sponsor & Prize System", true);
-        sponsorDialog.setSize(850, 550);
-        sponsorDialog.setLocationRelativeTo(frame);
-
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        JLabel titleLabel = new JLabel("Sponsor & Prize System");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
-        titleLabel.setHorizontalAlignment(JLabel.CENTER);
-
-        JTabbedPane tabbedPane = new JTabbedPane();
-
-        tabbedPane.addTab("Earnings Leaderboard", createEarningsLeaderboardPanel());
-        tabbedPane.addTab("Sponsor Rules", createSponsorRulesPanel());
-        tabbedPane.addTab("Selected Typist Sponsor", createSponsorDetailsPanel());
-        tabbedPane.addTab("Upgrade Shop", createUpgradeShopPanel());
-
-        JButton refreshButton = new JButton("Refresh Earnings");
-        refreshButton.addActionListener(e -> refreshEarningsTable());
-
-        JButton closeButton = new JButton("Close");
-        closeButton.addActionListener(e -> sponsorDialog.dispose());
-
-        JPanel buttonPanel = new JPanel(new FlowLayout());
-        buttonPanel.add(refreshButton);
-        buttonPanel.add(closeButton);
-
-        mainPanel.add(titleLabel, BorderLayout.NORTH);
-        mainPanel.add(tabbedPane, BorderLayout.CENTER);
-        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
-
-        sponsorDialog.setContentPane(mainPanel);
-
-        refreshEarningsTable();
-
-        sponsorDialog.setVisible(true);
-    }
-
-    private JPanel createEarningsLeaderboardPanel() {
-        JPanel panel = new JPanel(new BorderLayout(8, 8));
-
-        String[] columns = {
-            "Rank",
-            "Typist",
-            "Sponsor",
-            "Total Earnings",
-            "Latest Earnings",
-            "Upgrades Purchased"
-        };
-
-        earningsTableModel = new DefaultTableModel(columns, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        earningsTable = new JTable(earningsTableModel);
-        earningsTable.setFillsViewportHeight(true);
-        earningsTable.setRowHeight(24);
-        earningsTable.setFont(new Font("Arial", Font.PLAIN, 13));
-        earningsTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 13));
-
-        JScrollPane tableScrollPane = new JScrollPane(earningsTable);
-
-        JTextArea explanationArea = new JTextArea();
-        explanationArea.setEditable(false);
-        explanationArea.setLineWrap(true);
-        explanationArea.setWrapStyleWord(true);
-        explanationArea.setFont(new Font("Arial", Font.PLAIN, 13));
-        explanationArea.setText(
-            "Earnings Leaderboard\n" +
-            "This table ranks typists by total prize money earned.\n" +
-            "Sponsors, latest earnings, and purchased upgrades are displayed here."
-        );
-
-        panel.add(explanationArea, BorderLayout.NORTH);
-        panel.add(tableScrollPane, BorderLayout.CENTER);
-
-        return panel;
-    }
-
     private void refreshEarningsTable() {
         if (earningsTableModel == null) {
             return;
@@ -1528,179 +1298,6 @@ public class TypingRaceGUI {
             earningsTableModel.addRow(row);
             rank++;
         }
-    }
-
-    private JPanel createSponsorRulesPanel() {
-        JPanel panel = new JPanel(new BorderLayout(8, 8));
-
-        JTextArea rulesArea = new JTextArea();
-        rulesArea.setEditable(false);
-        rulesArea.setLineWrap(true);
-        rulesArea.setWrapStyleWord(true);
-        rulesArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
-
-        rulesArea.setText(
-            "Sponsor & Prize System\n" +
-            "================================================\n\n" +
-
-            "Earnings Formula\n" +
-            "----------------\n" +
-            "Typists earn coins after every race.\n\n" +
-
-            "Base Prize by Position:\n" +
-            "- 1st place: 100 coins\n" +
-            "- 2nd place: 75 coins\n" +
-            "- 3rd place: 50 coins\n" +
-            "- Lower positions: 25 coins\n" +
-            "- Last place: 0 coins\n\n" +
-
-            "Speed Bonus:\n" +
-            "- +10 coins for every full 20 WPM\n\n" +
-
-            "Burnout Penalty:\n" +
-            "- -5 coins for each burnout\n\n" +
-
-            "Sponsor Deals\n" +
-            "-------------\n" +
-            "KeyCorp\n" +
-            "Requirement: Finish with 0 burnouts.\n" +
-            "Bonus: +50 coins.\n\n" +
-
-            "Speedify\n" +
-            "Requirement: Finish with 75+ WPM.\n" +
-            "Bonus: +60 coins.\n\n" +
-
-            "CleanType\n" +
-            "Requirement: Finish with 95%+ accuracy.\n" +
-            "Bonus: +50 coins.\n\n" +
-
-            "Comeback Ltd\n" +
-            "Requirement: Finish top 3 after at least 3 burnouts.\n" +
-            "Bonus: +75 coins.\n\n" +
-
-            "Marathon Media\n" +
-            "Requirement: Complete 5 total races.\n" +
-            "Bonus: +25 coins after each race.\n\n" +
-
-            "Podium Partners\n" +
-            "Requirement: Finish top 3.\n" +
-            "Bonus: +35 coins.\n\n" +
-
-            "Precision Labs\n" +
-            "Requirement: Finish with 99%+ accuracy.\n" +
-            "Bonus: +80 coins.\n\n" +
-
-            "Burnout Recovery Co.\n" +
-            "Requirement: Finish with 5+ burnouts.\n" +
-            "Bonus: +70 coins.\n\n" +
-
-            "Rookie Boosters\n" +
-            "Requirement: Have fewer than 3 recorded races.\n" +
-            "Bonus: +40 coins.\n\n" +
-
-            "Champion Network\n" +
-            "Requirement: Win the race.\n" +
-            "Bonus: +90 coins.\n\n" +
-
-            "Underdog Union\n" +
-            "Requirement: Finish top 3 with less than 50 WPM.\n" +
-            "Bonus: +65 coins.\n\n" +
-
-            "Consistency Club\n" +
-            "Requirement: Have at least 3 recorded races.\n" +
-            "Bonus: +45 coins.\n\n" +
-
-            "Flawless Finance\n" +
-            "Requirement: Finish 1st with 0 burnouts.\n" +
-            "Bonus: +100 coins.\n\n" +
-
-            "Personal Best Promotions\n" +
-            "Requirement: Beat your previous best WPM.\n" +
-            "Bonus: +85 coins.\n\n" +
-
-            "Upgrade Shop\n" +
-            "------------\n" +
-            "Low-tier upgrades cost " + LOW_ITEM_PRICE + " coins and give a " + TIER_ONE_UPGRADE + " modifier.\n" +
-            "Mid-tier upgrades cost " + MID_ITEM_PRICE + " coins and give a " + TIER_TWO_UPGRADE + " modifier.\n" +
-            "High-tier upgrades cost " + HIGH_ITEM_PRICE + " coins and give a " + TIER_THREE_UPGRADE + " modifier.\n\n" +
-
-            "Speed Upgrades:\n" +
-            "- Lubed Switches: +" + TIER_ONE_UPGRADE + " speed\n" +
-            "- Lightweight Keyboard: +" + TIER_TWO_UPGRADE + " speed\n" +
-            "- Prototype Neural Keyboard: +" + TIER_THREE_UPGRADE + " speed\n\n" +
-
-            "Accuracy Upgrades:\n" +
-            "- Keycap Grip Tape: +" + TIER_ONE_UPGRADE + " accuracy\n" +
-            "- Precision Training Course: +" + TIER_TWO_UPGRADE + " accuracy\n" +
-            "- AI Error Prediction System: +" + TIER_THREE_UPGRADE + " accuracy\n\n" +
-
-            "Mistype Reduction Upgrades:\n" +
-            "- Focus Software Lite: -" + TIER_ONE_UPGRADE + " mistype chance\n" +
-            "- Adaptive Spell Guard: -" + TIER_TWO_UPGRADE + " mistype chance\n" +
-            "- Predictive Anti-Mistype Engine: -" + TIER_THREE_UPGRADE + " mistype chance\n\n" +
-
-            "Burnout Chance Upgrades:\n" +
-            "- Cooling Wrist Pad: -" + TIER_ONE_UPGRADE + " burnout chance\n" +
-            "- Ergonomic Desk Setup: -" + TIER_TWO_UPGRADE + " burnout chance\n" +
-            "- Full Performance Recovery Pod: -" + TIER_THREE_UPGRADE + " burnout chance\n\n" +
-
-            "Burnout Duration Upgrades:\n" +
-            "- Stretching Routine: -1 burnout duration\n" +
-            "- Endurance Coaching: -2 burnout duration\n" +
-            "- Elite Recovery Programme: -3 burnout duration\n\n" +
-
-            "Economy Upgrades:\n" +
-            "- Basic Agent Contract: +" + (int)(TIER_ONE_UPGRADE * 100) + " coins per race\n" +
-            "- Professional PR Team: +" + (int)(TIER_TWO_UPGRADE * 100) + " coins per race\n" +
-            "- Global Sponsorship Manager: +" + (int)(TIER_THREE_UPGRADE * 100) + " coins per race\n"
-        );
-
-        panel.add(new JScrollPane(rulesArea), BorderLayout.CENTER);
-
-        return panel;
-    }
-
-    private JPanel createSponsorDetailsPanel() {
-        JPanel panel = new JPanel(new BorderLayout(8, 8));
-
-        JComboBox<String> typistComboBox = new JComboBox<>();
-
-        List<String> typistNames = new ArrayList<>(sponsorProfiles.keySet());
-        Collections.sort(typistNames);
-
-        for (String typistName : typistNames) {
-            typistComboBox.addItem(typistName);
-        }
-
-        JTextArea detailsArea = new JTextArea(18, 60);
-        detailsArea.setEditable(false);
-        detailsArea.setLineWrap(true);
-        detailsArea.setWrapStyleWord(true);
-        detailsArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
-
-        if (typistComboBox.getItemCount() > 0) {
-            String firstTypist = (String) typistComboBox.getSelectedItem();
-            detailsArea.setText(buildSponsorDetailsText(firstTypist));
-        } else {
-            detailsArea.setText("No sponsor profiles available yet. Finish at least one race first.");
-        }
-
-        typistComboBox.addActionListener(e -> {
-            String selectedTypist = (String) typistComboBox.getSelectedItem();
-
-            if (selectedTypist != null) {
-                detailsArea.setText(buildSponsorDetailsText(selectedTypist));
-            }
-        });
-
-        JPanel topPanel = new JPanel(new GridLayout(1, 2, 8, 8));
-        topPanel.add(new JLabel("Choose typist:"));
-        topPanel.add(typistComboBox);
-
-        panel.add(topPanel, BorderLayout.NORTH);
-        panel.add(new JScrollPane(detailsArea), BorderLayout.CENTER);
-
-        return panel;
     }
 
     private JPanel createUpgradeShopPanel() {
@@ -1823,58 +1420,6 @@ public class TypingRaceGUI {
         parentPanel.add(categoryPanel);
     }
 
-    private String buildSponsorDetailsText(String typistKey) {
-        SponsorProfile profile = sponsorProfiles.get(typistKey);
-
-        if (profile == null) {
-            return "No sponsor profile found for " + typistKey + ".";
-        }
-
-        StringBuilder details = new StringBuilder();
-
-        details.append("Sponsor Profile\n");
-        details.append("==============================\n\n");
-
-        details.append("Typist: ")
-            .append(profile.getTypistName())
-            .append("\n");
-
-        details.append("Sponsor: ")
-            .append(profile.getSponsorName())
-            .append("\n");
-
-        details.append("Total Earnings: ")
-            .append(profile.getTotalEarnings())
-            .append(" coins\n");
-
-        details.append("Latest Race Earnings: ")
-            .append(profile.getLatestEarnings())
-            .append(" coins\n");
-
-        details.append("Upgrades Purchased: ")
-            .append(profile.getUpgradesPurchased())
-            .append("\n\n");
-
-        details.append("Upgrades:\n");
-
-        if (profile.getUpgrades().isEmpty()) {
-            details.append("- None\n");
-        } else {
-            for (String upgrade : profile.getUpgrades()) {
-                details.append("- ")
-                    .append(upgrade)
-                    .append(" -> ")
-                    .append(getUpgradeBenefitText(upgrade))
-                    .append("\n");
-            }
-        }
-
-        details.append("\nSponsor Bonus Explanation:\n");
-        details.append(getSponsorBenefitText(profile.getSponsorName()));
-
-        return details.toString();
-    }
-
     private void updateShopDetailsArea() {
         if (shopDetailsArea == null || shopTypistComboBox == null) {
             return;
@@ -1919,6 +1464,200 @@ public class TypingRaceGUI {
         shopDetailsArea.setText(text.toString());
     }
 
+    private String buildTypistDetailsText(String typistKey) {
+        RewardProfile rewardProfile = rewardProfiles.get(typistKey);
+        SponsorProfile sponsorProfile = sponsorProfiles.get(typistKey);
+
+        if (rewardProfile == null) {
+            return "No reward profile found for " + typistKey + ".";
+        }
+
+        StringBuilder details = new StringBuilder();
+
+        details.append("Typist Profile\n");
+        details.append("==============================\n\n");
+
+        details.append("Typist: ")
+            .append(rewardProfile.getTypistName())
+            .append("\n");
+
+        details.append("Total Points: ")
+            .append(rewardProfile.getCumulativePoints())
+            .append("\n");
+
+        details.append("Latest Race Points: ")
+            .append(rewardProfile.getLatestPoints())
+            .append("\n");
+
+        details.append("Wins: ")
+            .append(rewardProfile.getWins())
+            .append("\n\n");
+
+        details.append("Money & Sponsor\n");
+        details.append("------------------------------\n");
+
+        if (sponsorProfile == null) {
+            details.append("No sponsor profile found yet.\n\n");
+        } else {
+            details.append("Sponsor: ")
+                .append(sponsorProfile.getSponsorName())
+                .append("\n");
+
+            details.append("Total Money: ")
+                .append(sponsorProfile.getTotalEarnings())
+                .append(" coins\n");
+
+            details.append("Latest Race Money: ")
+                .append(sponsorProfile.getLatestEarnings())
+                .append(" coins\n");
+
+            details.append("Sponsor Bonus: ")
+                .append(getSponsorBenefitText(sponsorProfile.getSponsorName()))
+                .append("\n");
+
+            details.append("Purchased Upgrades:\n");
+
+            if (sponsorProfile.getUpgrades().isEmpty()) {
+                details.append("- None\n");
+            } else {
+                for (String upgrade : sponsorProfile.getUpgrades()) {
+                    details.append("- ")
+                        .append(upgrade)
+                        .append(" -> ")
+                        .append(getUpgradeBenefitText(upgrade))
+                        .append("\n");
+                }
+            }
+
+            details.append("\n");
+        }
+
+        details.append("Equipment / Customisation Boosts\n");
+        details.append("------------------------------\n");
+        details.append(buildEquipmentBoostText(typistKey));
+        details.append("\n");
+
+        details.append("Titles Earned\n");
+        details.append("------------------------------\n");
+
+        if (rewardProfile.getTitles().isEmpty()) {
+            details.append("- None\n");
+        } else {
+            for (String title : rewardProfile.getTitles()) {
+                details.append("- ")
+                    .append(title)
+                    .append(" -> ")
+                    .append(getTitleBenefitText(title))
+                    .append("\n");
+            }
+        }
+
+        details.append("\nBadges Earned\n");
+        details.append("------------------------------\n");
+
+        if (rewardProfile.getBadges().isEmpty()) {
+            details.append("- None\n");
+        } else {
+            for (String badge : rewardProfile.getBadges()) {
+                details.append("- ")
+                    .append(badge)
+                    .append(" -> ")
+                    .append(getBadgeBenefitText(badge))
+                    .append("\n");
+            }
+        }
+
+        details.append("\nFinal Boost Summary\n");
+        details.append("------------------------------\n");
+        details.append(buildFinalBoostSummary(rewardProfile, sponsorProfile));
+
+        return details.toString();
+    }
+
+    private JPanel createRulesPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
+
+        JTextArea rulesArea = new JTextArea();
+        rulesArea.setEditable(false);
+        rulesArea.setLineWrap(true);
+        rulesArea.setWrapStyleWord(true);
+        rulesArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+
+        rulesArea.setText(
+            "Leaderboard, Rewards, Sponsors & Shop\n" +
+            "================================================\n\n" +
+
+            "Leaderboard Ranking\n" +
+            "-------------------\n" +
+            "The leaderboard ranks typists by total reward points.\n" +
+            "Money is shown as an extra value, but money does not decide leaderboard rank.\n\n" +
+
+            "Reward Points\n" +
+            "-------------\n" +
+            "Base position points:\n" +
+            "- 1st place: 12 points\n" +
+            "- 2nd place: 10 points\n" +
+            "- 3rd place: 8 points\n" +
+            "- Each lower position loses 2 more points\n\n" +
+
+            "WPM bonus:\n" +
+            "- +1 points for every full 20 WPM achieved\n\n" +
+
+            "Burnout penalty:\n" +
+            "- Each burnout removes 2 points\n\n" +
+
+            "Money System\n" +
+            "------------\n" +
+            "Typists earn prize money after races.\n" +
+            "Money can be spent in the Upgrade Shop.\n\n" +
+
+            "Base prize money:\n" +
+            "- 1st place: 100 coins\n" +
+            "- 2nd place: 75 coins\n" +
+            "- 3rd place: 50 coins\n" +
+            "- Lower positions: 25 coins\n" +
+            "- Last place: 0 coins\n\n" +
+
+            "Sponsors\n" +
+            "--------\n" +
+            "Each typist receives a sponsor.\n" +
+            "Sponsors give bonus money when their condition is met.\n\n" +
+
+            "Examples:\n" +
+            "- KeyCorp: bonus for 0 burnouts\n" +
+            "- Speedify: bonus for 75+ WPM\n" +
+            "- Champion Network: bonus for winning\n" +
+            "- Personal Best Promotions: bonus for beating previous best WPM\n\n" +
+
+            "Upgrade Shop\n" +
+            "------------\n" +
+            "Low-tier upgrades cost " + LOW_ITEM_PRICE + " coins.\n" +
+            "Mid-tier upgrades cost " + MID_ITEM_PRICE + " coins.\n" +
+            "High-tier upgrades cost " + HIGH_ITEM_PRICE + " coins.\n\n" +
+
+            "Upgrade categories:\n" +
+            "- Speed upgrades\n" +
+            "- Accuracy upgrades\n" +
+            "- Mistype reduction upgrades\n" +
+            "- Burnout chance upgrades\n" +
+            "- Burnout duration upgrades\n" +
+            "- Economy upgrades\n\n" +
+
+            "The Selected Typist Details tab shows the final combined boost from:\n" +
+            "- Typing style\n" +
+            "- Keyboard type\n" +
+            "- Accessory\n" +
+            "- Titles\n" +
+            "- Badges\n" +
+            "- Purchased sponsor/shop upgrades\n"
+        );
+
+        panel.add(new JScrollPane(rulesArea), BorderLayout.CENTER);
+
+        return panel;
+    }
+
+
     /*  HELPER METHODS 
         All Helper Methods that help the GUI code fonction
         Organised like this for easier access and know how
@@ -1926,6 +1665,61 @@ public class TypingRaceGUI {
         Most of these Helper Methods are single case use only 
         but some of these are reusable and very important
     */
+
+    private String buildFinalBoostSummary(RewardProfile rewardProfile, SponsorProfile sponsorProfile) {
+        StringBuilder summary = new StringBuilder();
+
+        double accuracyBoost = calculateRankImpact(rewardProfile, "Accuracy", 0.0);
+        double speedBoost = calculateRankImpact(rewardProfile, "Speed", 0.0);
+        double mistypeModifier = calculateRankImpact(rewardProfile, "Mistype", 0.0);
+        double burnoutChanceModifier = calculateRankImpact(rewardProfile, "BurnoutChance", 0.0);
+        double rewardPointModifier = calculateRankImpact(rewardProfile, "RewardPoints", 0.0);
+
+        if (sponsorProfile != null) {
+            accuracyBoost = calculateUpgradeImpact(sponsorProfile, "Accuracy", accuracyBoost);
+            speedBoost = calculateUpgradeImpact(sponsorProfile, "Speed", speedBoost);
+            mistypeModifier = calculateUpgradeImpact(sponsorProfile, "Mistype", mistypeModifier);
+            burnoutChanceModifier = calculateUpgradeImpact(sponsorProfile, "BurnoutChance", burnoutChanceModifier);
+        }
+
+        summary.append("- Final accuracy impact: ")
+            .append(String.format("%+.2f", accuracyBoost))
+            .append("\n");
+
+        summary.append("- Final speed impact: ")
+            .append(String.format("%+.2f", speedBoost))
+            .append("\n");
+
+        summary.append("- Final mistype chance impact: ")
+            .append(String.format("%+.2f", mistypeModifier))
+            .append("\n");
+
+        summary.append("- Final burnout chance impact: ")
+            .append(String.format("%+.2f", burnoutChanceModifier))
+            .append("\n");
+
+        summary.append("- Final reward points impact: ")
+            .append(String.format("%+.2f", rewardPointModifier))
+            .append("\n");
+
+        if (sponsorProfile != null) {
+            int durationImpact = calculateUpgradeDurationImpact(sponsorProfile, 0);
+            double moneyImpact = calculateUpgradeImpact(sponsorProfile, "Money", 0.0);
+
+            summary.append("- Final burnout duration impact: ")
+                .append(String.format("%+d", durationImpact))
+                .append("\n");
+
+            summary.append("- Final money per race impact: ")
+                .append(String.format("%+.0f", moneyImpact))
+                .append(" coins\n");
+        } else {
+            summary.append("- Final burnout duration impact: +0\n");
+            summary.append("- Final money per race impact: +0 coins\n");
+        }
+
+        return summary.toString();
+    }
 
     private Typist findCurrentTypistByKey(String typistKey) {
         if (race == null) {
@@ -2009,11 +1803,11 @@ public class TypingRaceGUI {
         } else if (upgrade.equals("Elite Recovery Programme")) {
             return "-3 burnout duration";
         } else if (upgrade.equals("Basic Agent Contract")) {
-            return "+" + (int)(TIER_ONE_UPGRADE * 100) + " coins per race";
+            return "+" + (int)(TIER_ONE_UPGRADE * 200) + " coins per race";
         } else if (upgrade.equals("Professional PR Team")) {
-            return "+" + (int)(TIER_TWO_UPGRADE * 100) + " coins per race";
+            return "+" + (int)(TIER_TWO_UPGRADE * 200) + " coins per race";
         } else if (upgrade.equals("Global Sponsorship Manager")) {
-            return "+" + (int)(TIER_THREE_UPGRADE * 100) + " coins per race";
+            return "+" + (int)(TIER_THREE_UPGRADE * 200) + " coins per race";
         }
 
         return "No listed upgrade benefit";
@@ -2134,38 +1928,6 @@ public class TypingRaceGUI {
         }
 
         return "No listed benefit";
-    }
-
-    private String buildRankImpactSummary(RewardProfile profile) {
-        StringBuilder summary = new StringBuilder();
-
-        double accuracyBoost = calculateRankImpact(profile, "Accuracy", 0.0);
-        double speedBoost = calculateRankImpact(profile, "Speed", 0.0);
-        double mistypeModifier = calculateRankImpact(profile, "Mistype", 0.0);
-        double burnoutChanceModifier = calculateRankImpact(profile, "BurnoutChance", 0.0);
-        double rewardPointModifier = calculateRankImpact(profile, "RewardPoints", 0.0);
-
-        summary.append("- Accuracy impact: ")
-            .append(String.format("%+.2f", accuracyBoost))
-            .append("\n");
-
-        summary.append("- Speed impact: ")
-            .append(String.format("%+.2f", speedBoost))
-            .append("\n");
-
-        summary.append("- Mistype chance impact: ")
-            .append(String.format("%+.2f", mistypeModifier))
-            .append("\n");
-
-        summary.append("- Burnout chance impact: ")
-            .append(String.format("%+.2f", burnoutChanceModifier))
-            .append("\n");
-
-        summary.append("- Reward points impact: ")
-            .append(String.format("%+.2f", rewardPointModifier))
-            .append("\n");
-
-        return summary.toString();
     }
 
     private String getTypistKey(int index) { // fixing 
@@ -2720,7 +2482,7 @@ public class TypingRaceGUI {
             winnerPoints -= 2;
         }
 
-        wpmPoints = ((int)Math.round(wpm)/20)*5;
+        wpmPoints = ((int)Math.round(wpm)/20);
 
         points = winnerPoints + wpmPoints - burnoutCount * 2; 
 
