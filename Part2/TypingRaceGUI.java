@@ -66,6 +66,12 @@ public class TypingRaceGUI {
     private Map<String, Double> personalBestWPMs = new HashMap<>();
     private Map<String, List<RaceHistoryRecord>> raceHistories = new HashMap<>();
     private Map<String, RewardProfile> rewardProfiles = new HashMap<>();
+    private Map<String, SponsorProfile> sponsorProfiles = new HashMap<>();
+    private JComboBox<String> shopTypistComboBox;
+    private JTextArea shopDetailsArea;
+
+    private JTable earningsTable;
+    private DefaultTableModel earningsTableModel;
 
     private JTable leaderboardTable;
     private DefaultTableModel leaderboardTableModel;
@@ -74,6 +80,15 @@ public class TypingRaceGUI {
     private JTextPane[] passagePanes;
     private JLabel[] raceTypistLabels;
     private JProgressBar[] raceProgressBars;
+
+    private final int LOW_ITEM_PRICE = 100;
+    private final int MID_ITEM_PRICE = 750;
+    private final int HIGH_ITEM_PRICE = 1800;
+
+    private final double TIER_ONE_UPGRADE = 0.05;
+    private final double TIER_TWO_UPGRADE = 0.15;
+    private final double TIER_THREE_UPGRADE = 0.25;
+
 
     private final String[] TYPING_STYLES = {
         "Touch Typist",
@@ -312,12 +327,6 @@ public class TypingRaceGUI {
         selectedCaffeineMode = caffeineModeCheckBox.isSelected();
         selectedNightShift = nightShiftCheckBox.isSelected();
 
-        selectedPassage = passage;
-        selectedSeatCount = (int) seatCountComboBox.getSelectedItem();
-        selectedAutocorrect = autocorrectCheckBox.isSelected();
-        selectedCaffeineMode = caffeineModeCheckBox.isSelected();
-        selectedNightShift = nightShiftCheckBox.isSelected();
-
         initialiseSavedTypistChoices();
 
         createTypistDesignScreen();
@@ -445,15 +454,6 @@ public class TypingRaceGUI {
         symbolFields = new JTextField[selectedSeatCount];
         colourButtons = new JButton[selectedSeatCount];
         selectedColours = new Color[selectedSeatCount];
-
-        Color[] defaultColours = {
-            Color.BLUE,
-            Color.RED,
-            Color.GREEN,
-            Color.ORANGE,
-            Color.MAGENTA,
-            Color.CYAN
-        };
 
         JPanel symbolColourPanel = new JPanel(new GridLayout(0, 3, 5, 5));
         symbolColourPanel.setBorder(BorderFactory.createTitledBorder("Symbol / Emoji and Colour"));
@@ -643,11 +643,15 @@ public class TypingRaceGUI {
         JButton leaderboardButton = new JButton("Leaderboard");
         leaderboardButton.addActionListener(e -> showLeaderboardDialog());
 
+        JButton sponsorButton = new JButton("Sponsors & Prizes");
+        sponsorButton.addActionListener(e -> showSponsorDialog());
+
         JPanel buttonPanel = new JPanel(new FlowLayout());
         buttonPanel.add(backButton);
         buttonPanel.add(comparisonButton);
         buttonPanel.add(graphButton);
         buttonPanel.add(leaderboardButton);
+        buttonPanel.add(sponsorButton);
 
         mainPanel.add(titleLabel, BorderLayout.NORTH);
         mainPanel.add(new JScrollPane(lanesPanel), BorderLayout.CENTER);
@@ -700,7 +704,9 @@ public class TypingRaceGUI {
                 displayedProgress = selectedPassage.length();
             }
 
-            double wordsTyped = displayedProgress / 5.0;
+            int totalKeystrokes = typist.getCorrectKeystrokes() + typist.getMistypeCount();
+
+            double wordsTyped = totalKeystrokes / 5.0;
             double wpm = wordsTyped / elapsedMinutes;
 
             updatePersonalBest(typist, wpm);
@@ -760,6 +766,7 @@ public class TypingRaceGUI {
         }
 
         updateRewardSystemAfterRace();
+        updateSponsorSystemAfterRace();
 
         JTextArea statsArea = new JTextArea(stats.toString());
         statsArea.setEditable(false);
@@ -1153,7 +1160,7 @@ public class TypingRaceGUI {
         rulesArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
 
         rulesArea.setText(
-            "Reward System A: Leaderboard & Ranking System\n" +
+            "Leaderboard & Ranking System\n" +
             "================================================\n\n" +
 
             "Victory Points Formula\n" +
@@ -1413,162 +1420,504 @@ public class TypingRaceGUI {
         return text.toString();
     }
 
+    private void showSponsorDialog() {
+        JDialog sponsorDialog = new JDialog(frame, "Sponsor & Prize System", true);
+        sponsorDialog.setSize(850, 550);
+        sponsorDialog.setLocationRelativeTo(frame);
 
-    /* MODIFIER METHODS
-    
-    These methods have the main modifiers for the game
-    These can be treated as final variables as the only
-    way to change the values inside the game is through
-    these methods
-    
-    Very Important and useful for customisation
-    
-    */  
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-    private double calculateAccuracyBoost(int index) {
-        double boost = 0.0;
+        JLabel titleLabel = new JLabel("Sponsor & Prize System");
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 22));
+        titleLabel.setHorizontalAlignment(JLabel.CENTER);
 
-        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        JTabbedPane tabbedPane = new JTabbedPane();
 
-        if (typingStyle.equals("Touch Typist")) {
-            boost += 0.20;
-        } else if (typingStyle.equals("Hunt & Peck")) {
-            boost -= 0.10;
-        } else if (typingStyle.equals("Phone Thumbs")) {
-            boost -= 0.15;
-        } else if (typingStyle.equals("Voice-to-Text")) {
-            boost += 0.25;
-        }
+        tabbedPane.addTab("Earnings Leaderboard", createEarningsLeaderboardPanel());
+        tabbedPane.addTab("Sponsor Rules", createSponsorRulesPanel());
+        tabbedPane.addTab("Selected Typist Sponsor", createSponsorDetailsPanel());
+        tabbedPane.addTab("Upgrade Shop", createUpgradeShopPanel());
 
-        if (keyboardType.equals("Mechanical")) {
-            boost += 0.15;
-        } else if (keyboardType.equals("Touchscreen")) {
-            boost -= 0.25;
-        } else if (keyboardType.equals("Stenography")) {
-            boost += 0.40;
-        }
+        JButton refreshButton = new JButton("Refresh Earnings");
+        refreshButton.addActionListener(e -> refreshEarningsTable());
 
+        JButton closeButton = new JButton("Close");
+        closeButton.addActionListener(e -> sponsorDialog.dispose());
 
-        String typistKey = getTypistKey(index);
-        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.add(refreshButton);
+        buttonPanel.add(closeButton);
 
-        if (typistProfile != null) {
-            boost = calculateRankImpact(typistProfile, "Accuracy", boost);
-        }
+        mainPanel.add(titleLabel, BorderLayout.NORTH);
+        mainPanel.add(tabbedPane, BorderLayout.CENTER);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
 
-        return boost;
+        sponsorDialog.setContentPane(mainPanel);
+
+        refreshEarningsTable();
+
+        sponsorDialog.setVisible(true);
     }
 
-    private boolean checkEnergyDrink (int index) {
-        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+    private JPanel createEarningsLeaderboardPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
 
-        if (accessory.equals("Energy Drink")) {
-            return true;
-        }
-        return false;
+        String[] columns = {
+            "Rank",
+            "Typist",
+            "Sponsor",
+            "Total Earnings",
+            "Latest Earnings",
+            "Upgrades Purchased"
+        };
+
+        earningsTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        earningsTable = new JTable(earningsTableModel);
+        earningsTable.setFillsViewportHeight(true);
+        earningsTable.setRowHeight(24);
+        earningsTable.setFont(new Font("Arial", Font.PLAIN, 13));
+        earningsTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 13));
+
+        JScrollPane tableScrollPane = new JScrollPane(earningsTable);
+
+        JTextArea explanationArea = new JTextArea();
+        explanationArea.setEditable(false);
+        explanationArea.setLineWrap(true);
+        explanationArea.setWrapStyleWord(true);
+        explanationArea.setFont(new Font("Arial", Font.PLAIN, 13));
+        explanationArea.setText(
+            "Earnings Leaderboard\n" +
+            "This table ranks typists by total prize money earned.\n" +
+            "Sponsors, latest earnings, and purchased upgrades are displayed here."
+        );
+
+        panel.add(explanationArea, BorderLayout.NORTH);
+        panel.add(tableScrollPane, BorderLayout.CENTER);
+
+        return panel;
     }
 
-    private double calculateSpeedBoost(int index) {
-        double boost = 0.0;
-
-        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-
-        if (typingStyle.equals("Phone Thumbs")) {
-            boost += 0.20;
+    private void refreshEarningsTable() {
+        if (earningsTableModel == null) {
+            return;
         }
 
-        if (keyboardType.equals("Mechanical")) {
-            boost -= 0.10;
-        } else if (keyboardType.equals("Touchscreen")) {
-            boost += 0.40;
-        } else if (keyboardType.equals("Stenography")) {
-            boost -= 0.20;
+        earningsTableModel.setRowCount(0);
+
+        List<SponsorProfile> profiles = getSponsorProfilesForDisplay();
+
+        int rank = 1;
+
+        for (SponsorProfile profile : profiles) {
+            Object[] row = {
+                rank,
+                profile.getTypistName(),
+                profile.getSponsorName(),
+                profile.getTotalEarnings(),
+                profile.getLatestEarnings(),
+                profile.getUpgradesPurchased()
+            };
+
+            earningsTableModel.addRow(row);
+            rank++;
         }
-
-        String typistKey = getTypistKey(index);
-        RewardProfile typistProfile = rewardProfiles.get(typistKey);
-
-        if (typistProfile != null) {
-            boost = calculateRankImpact(typistProfile, "Accuracy", boost);
-        }
-
-        return boost;
     }
 
-    private double calculateMistypeModifier(int index) {
-        double boost = 0.0;
+    private JPanel createSponsorRulesPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
 
-        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+        JTextArea rulesArea = new JTextArea();
+        rulesArea.setEditable(false);
+        rulesArea.setLineWrap(true);
+        rulesArea.setWrapStyleWord(true);
+        rulesArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
 
-        if (typingStyle.equals("Voice-to-Text")) {
-            boost += 0.25;
-        }
-        if (keyboardType.equals("Touchscreen")) {
-            boost += 0.20;
-        }
-        if (accessory.equals("Noise-Cancelling Headphones")) {
-            boost -= 0.20;
-        }
+        rulesArea.setText(
+            "Sponsor & Prize System\n" +
+            "================================================\n\n" +
 
-        String typistKey = getTypistKey(index);
-        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+            "Earnings Formula\n" +
+            "----------------\n" +
+            "Typists earn coins after every race.\n\n" +
 
-        if (typistProfile != null) {
-            boost = calculateRankImpact(typistProfile, "Accuracy", boost);
-        }
+            "Base Prize by Position:\n" +
+            "- 1st place: 100 coins\n" +
+            "- 2nd place: 75 coins\n" +
+            "- 3rd place: 50 coins\n" +
+            "- Lower positions: 25 coins\n" +
+            "- Last place: 0 coins\n\n" +
 
-        return boost;
+            "Speed Bonus:\n" +
+            "- +10 coins for every full 20 WPM\n\n" +
+
+            "Burnout Penalty:\n" +
+            "- -5 coins for each burnout\n\n" +
+
+            "Sponsor Deals\n" +
+            "-------------\n" +
+            "KeyCorp\n" +
+            "Requirement: Finish with 0 burnouts.\n" +
+            "Bonus: +50 coins.\n\n" +
+
+            "Speedify\n" +
+            "Requirement: Finish with 75+ WPM.\n" +
+            "Bonus: +60 coins.\n\n" +
+
+            "CleanType\n" +
+            "Requirement: Finish with 95%+ accuracy.\n" +
+            "Bonus: +50 coins.\n\n" +
+
+            "Comeback Ltd\n" +
+            "Requirement: Finish top 3 after at least 3 burnouts.\n" +
+            "Bonus: +75 coins.\n\n" +
+
+            "Marathon Media\n" +
+            "Requirement: Complete 5 total races.\n" +
+            "Bonus: +25 coins after each race.\n\n" +
+
+            "Podium Partners\n" +
+            "Requirement: Finish top 3.\n" +
+            "Bonus: +35 coins.\n\n" +
+
+            "Precision Labs\n" +
+            "Requirement: Finish with 99%+ accuracy.\n" +
+            "Bonus: +80 coins.\n\n" +
+
+            "Burnout Recovery Co.\n" +
+            "Requirement: Finish with 5+ burnouts.\n" +
+            "Bonus: +70 coins.\n\n" +
+
+            "Rookie Boosters\n" +
+            "Requirement: Have fewer than 3 recorded races.\n" +
+            "Bonus: +40 coins.\n\n" +
+
+            "Champion Network\n" +
+            "Requirement: Win the race.\n" +
+            "Bonus: +90 coins.\n\n" +
+
+            "Underdog Union\n" +
+            "Requirement: Finish top 3 with less than 50 WPM.\n" +
+            "Bonus: +65 coins.\n\n" +
+
+            "Consistency Club\n" +
+            "Requirement: Have at least 3 recorded races.\n" +
+            "Bonus: +45 coins.\n\n" +
+
+            "Flawless Finance\n" +
+            "Requirement: Finish 1st with 0 burnouts.\n" +
+            "Bonus: +100 coins.\n\n" +
+
+            "Personal Best Promotions\n" +
+            "Requirement: Beat your previous best WPM.\n" +
+            "Bonus: +85 coins.\n\n" +
+
+            "Upgrade Shop\n" +
+            "------------\n" +
+            "Low-tier upgrades cost " + LOW_ITEM_PRICE + " coins and give a " + TIER_ONE_UPGRADE + " modifier.\n" +
+            "Mid-tier upgrades cost " + MID_ITEM_PRICE + " coins and give a " + TIER_TWO_UPGRADE + " modifier.\n" +
+            "High-tier upgrades cost " + HIGH_ITEM_PRICE + " coins and give a " + TIER_THREE_UPGRADE + " modifier.\n\n" +
+
+            "Speed Upgrades:\n" +
+            "- Lubed Switches: +" + TIER_ONE_UPGRADE + " speed\n" +
+            "- Lightweight Keyboard: +" + TIER_TWO_UPGRADE + " speed\n" +
+            "- Prototype Neural Keyboard: +" + TIER_THREE_UPGRADE + " speed\n\n" +
+
+            "Accuracy Upgrades:\n" +
+            "- Keycap Grip Tape: +" + TIER_ONE_UPGRADE + " accuracy\n" +
+            "- Precision Training Course: +" + TIER_TWO_UPGRADE + " accuracy\n" +
+            "- AI Error Prediction System: +" + TIER_THREE_UPGRADE + " accuracy\n\n" +
+
+            "Mistype Reduction Upgrades:\n" +
+            "- Focus Software Lite: -" + TIER_ONE_UPGRADE + " mistype chance\n" +
+            "- Adaptive Spell Guard: -" + TIER_TWO_UPGRADE + " mistype chance\n" +
+            "- Predictive Anti-Mistype Engine: -" + TIER_THREE_UPGRADE + " mistype chance\n\n" +
+
+            "Burnout Chance Upgrades:\n" +
+            "- Cooling Wrist Pad: -" + TIER_ONE_UPGRADE + " burnout chance\n" +
+            "- Ergonomic Desk Setup: -" + TIER_TWO_UPGRADE + " burnout chance\n" +
+            "- Full Performance Recovery Pod: -" + TIER_THREE_UPGRADE + " burnout chance\n\n" +
+
+            "Burnout Duration Upgrades:\n" +
+            "- Stretching Routine: -1 burnout duration\n" +
+            "- Endurance Coaching: -2 burnout duration\n" +
+            "- Elite Recovery Programme: -3 burnout duration\n\n" +
+
+            "Economy Upgrades:\n" +
+            "- Basic Agent Contract: +" + (int)(TIER_ONE_UPGRADE * 100) + " coins per race\n" +
+            "- Professional PR Team: +" + (int)(TIER_TWO_UPGRADE * 100) + " coins per race\n" +
+            "- Global Sponsorship Manager: +" + (int)(TIER_THREE_UPGRADE * 100) + " coins per race\n"
+        );
+
+        panel.add(new JScrollPane(rulesArea), BorderLayout.CENTER);
+
+        return panel;
     }
 
-    private double calculateBurnoutModifier(int index) {
-        double modifier = 0.0;
+    private JPanel createSponsorDetailsPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
 
-        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        JComboBox<String> typistComboBox = new JComboBox<>();
 
-        if (typingStyle.equals("Touch Typist")) {
-            modifier += 0.10;
-        } else if (typingStyle.equals("Hunt & Peck")) {
-            modifier -= 0.25;
-        } else if (typingStyle.equals("Voice-to-Text")) {
-            modifier -= 0.10;
+        List<String> typistNames = new ArrayList<>(sponsorProfiles.keySet());
+        Collections.sort(typistNames);
+
+        for (String typistName : typistNames) {
+            typistComboBox.addItem(typistName);
         }
 
-        if (keyboardType.equals("Stenography")) {
-            modifier += 0.15;
+        JTextArea detailsArea = new JTextArea(18, 60);
+        detailsArea.setEditable(false);
+        detailsArea.setLineWrap(true);
+        detailsArea.setWrapStyleWord(true);
+        detailsArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+
+        if (typistComboBox.getItemCount() > 0) {
+            String firstTypist = (String) typistComboBox.getSelectedItem();
+            detailsArea.setText(buildSponsorDetailsText(firstTypist));
+        } else {
+            detailsArea.setText("No sponsor profiles available yet. Finish at least one race first.");
         }
 
-        String typistKey = getTypistKey(index);
-        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+        typistComboBox.addActionListener(e -> {
+            String selectedTypist = (String) typistComboBox.getSelectedItem();
 
-        if (typistProfile != null) {
-            modifier = calculateRankImpact(typistProfile, "BurnoutChance", modifier);
-        }
+            if (selectedTypist != null) {
+                detailsArea.setText(buildSponsorDetailsText(selectedTypist));
+            }
+        });
 
-        return modifier;
+        JPanel topPanel = new JPanel(new GridLayout(1, 2, 8, 8));
+        topPanel.add(new JLabel("Choose typist:"));
+        topPanel.add(typistComboBox);
+
+        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(new JScrollPane(detailsArea), BorderLayout.CENTER);
+
+        return panel;
     }
 
-    private int calculateBurnoutDurationModifier(int index) {
-        int modifier = 0;
+    private JPanel createUpgradeShopPanel() {
+        JPanel panel = new JPanel(new BorderLayout(8, 8));
 
-        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
-        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+        shopTypistComboBox = new JComboBox<>();
 
-        if (keyboardType.equals("Stenography")) {
-            modifier += 1;
+        List<String> typistNames = new ArrayList<>(sponsorProfiles.keySet());
+        Collections.sort(typistNames);
+
+        for (String typistName : typistNames) {
+            shopTypistComboBox.addItem(typistName);
         }
 
-        if (accessory.equals("Wrist Support")) {
-            modifier -= 2;
-        }
+        JPanel topPanel = new JPanel(new GridLayout(1, 2, 8, 8));
+        topPanel.add(new JLabel("Choose typist:"));
+        topPanel.add(shopTypistComboBox);
 
-        return modifier;
+        JPanel shopItemsPanel = new JPanel(new GridLayout(0, 1, 8, 8));
+        shopItemsPanel.setBorder(BorderFactory.createTitledBorder("Available Upgrades"));
+
+        addShopCategory(shopItemsPanel, "Speed Upgrades", new String[][] {
+            {"Lubed Switches", String.valueOf(LOW_ITEM_PRICE), "+"+ TIER_ONE_UPGRADE +" speed"},
+            {"Lightweight Keyboard", String.valueOf(MID_ITEM_PRICE), "+"+ TIER_TWO_UPGRADE +" speed"},
+            {"Prototype Neural Keyboard", String.valueOf(HIGH_ITEM_PRICE), "+"+ TIER_THREE_UPGRADE +" speed"}
+        });
+
+        addShopCategory(shopItemsPanel, "Accuracy Upgrades", new String[][] {
+            {"Keycap Grip Tape", String.valueOf(LOW_ITEM_PRICE),  "+"+ TIER_ONE_UPGRADE +" accuracy"},
+            {"Precision Training Course", String.valueOf(MID_ITEM_PRICE), "+"+ TIER_TWO_UPGRADE +" accuracy"},
+            {"AI Error Prediction System", String.valueOf(HIGH_ITEM_PRICE), "+"+ TIER_THREE_UPGRADE +" accuracy"}
+        });
+
+        addShopCategory(shopItemsPanel, "Mistype Reduction Upgrades", new String[][] {
+            {"Focus Software Lite", String.valueOf(LOW_ITEM_PRICE),  "-"+ TIER_ONE_UPGRADE +" mistype chance"},
+            {"Adaptive Spell Guard", String.valueOf(MID_ITEM_PRICE), "-"+ TIER_TWO_UPGRADE +" mistype chance"},
+            {"Predictive Anti-Mistype Engine", String.valueOf(HIGH_ITEM_PRICE), "-"+ TIER_THREE_UPGRADE +" mistype chance"}
+        });
+
+        addShopCategory(shopItemsPanel, "Burnout Chance Upgrades", new String[][] {
+            {"Cooling Wrist Pad", String.valueOf(LOW_ITEM_PRICE),  "-"+ TIER_ONE_UPGRADE +" burnout chance"},
+            {"Ergonomic Desk Setup", String.valueOf(MID_ITEM_PRICE),"-"+ TIER_TWO_UPGRADE +" burnout chance"},
+            {"Full Performance Recovery Pod", String.valueOf(HIGH_ITEM_PRICE), "-"+ TIER_THREE_UPGRADE +" burnout chance"}
+        });
+
+        addShopCategory(shopItemsPanel, "Burnout Duration Upgrades", new String[][] {
+            {"Stretching Routine", String.valueOf(LOW_ITEM_PRICE), "-1 burnout duration"},
+            {"Endurance Coaching", String.valueOf(MID_ITEM_PRICE), "-2 burnout duration"},
+            {"Elite Recovery Programme", String.valueOf(HIGH_ITEM_PRICE), "-3 burnout duration"}
+        });
+
+        addShopCategory(shopItemsPanel, "Economy Upgrades", new String[][] {
+            {"Basic Agent Contract", String.valueOf(LOW_ITEM_PRICE), "+"+ (int)(TIER_ONE_UPGRADE*100)+ " coins per race"},
+            {"Professional PR Team", String.valueOf(MID_ITEM_PRICE), "+"+ (int)(TIER_TWO_UPGRADE*100)+ " coins per race"},
+            {"Global Sponsorship Manager", String.valueOf(HIGH_ITEM_PRICE), "+"+ (int)(TIER_THREE_UPGRADE*100)+ " coins per race"}
+        });
+
+        shopDetailsArea = new JTextArea(6, 60);
+        shopDetailsArea.setEditable(false);
+        shopDetailsArea.setLineWrap(true);
+        shopDetailsArea.setWrapStyleWord(true);
+        shopDetailsArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
+        updateShopDetailsArea();
+
+        shopTypistComboBox.addActionListener(e -> updateShopDetailsArea());
+
+        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(new JScrollPane(shopItemsPanel), BorderLayout.CENTER);
+        panel.add(new JScrollPane(shopDetailsArea), BorderLayout.SOUTH);
+
+        return panel;
     }
 
+    private void handleUpgradePurchase(String item) {
+        String selectedTypistKey = (String) shopTypistComboBox.getSelectedItem();
+
+        if (selectedTypistKey == null) {
+            JOptionPane.showMessageDialog(frame, "Please select a typist first.");
+            return;
+        }
+
+        Typist selectedTypist = findCurrentTypistByKey(selectedTypistKey);
+
+        if (selectedTypist == null) {
+            JOptionPane.showMessageDialog(
+                frame,
+                "This typist is not in the current race, so the upgrade cannot be applied right now."
+            );
+            return;
+        }
+
+        applyPurchasedUpgrades(selectedTypist, item);
+
+        updateShopDetailsArea();
+        refreshEarningsTable();
+    }
+
+    private void addShopCategory(JPanel parentPanel, String categoryName, String[][] items) {
+        JPanel categoryPanel = new JPanel(new GridLayout(0, 1, 4, 4));
+        categoryPanel.setBorder(BorderFactory.createTitledBorder(categoryName));
+
+        for (int i = 0; i < items.length; i++) {
+            String itemName = items[i][0];
+            String itemCost = items[i][1];
+            String itemEffect = items[i][2];
+
+            JPanel itemPanel = new JPanel(new BorderLayout(8, 8));
+
+            JLabel itemLabel = new JLabel(itemName + " | Cost: " + itemCost + " coins | Effect: " + itemEffect);
+
+            JButton buyButton = new JButton("Buy");
+            buyButton.addActionListener(e -> handleUpgradePurchase(itemName));
+
+            itemPanel.add(itemLabel, BorderLayout.CENTER);
+            itemPanel.add(buyButton, BorderLayout.EAST);
+
+            categoryPanel.add(itemPanel);
+        }
+
+        parentPanel.add(categoryPanel);
+    }
+
+    private String buildSponsorDetailsText(String typistKey) {
+        SponsorProfile profile = sponsorProfiles.get(typistKey);
+
+        if (profile == null) {
+            return "No sponsor profile found for " + typistKey + ".";
+        }
+
+        StringBuilder details = new StringBuilder();
+
+        details.append("Sponsor Profile\n");
+        details.append("==============================\n\n");
+
+        details.append("Typist: ")
+            .append(profile.getTypistName())
+            .append("\n");
+
+        details.append("Sponsor: ")
+            .append(profile.getSponsorName())
+            .append("\n");
+
+        details.append("Total Earnings: ")
+            .append(profile.getTotalEarnings())
+            .append(" coins\n");
+
+        details.append("Latest Race Earnings: ")
+            .append(profile.getLatestEarnings())
+            .append(" coins\n");
+
+        details.append("Upgrades Purchased: ")
+            .append(profile.getUpgradesPurchased())
+            .append("\n\n");
+
+        details.append("Upgrades:\n");
+
+        if (profile.getUpgrades().isEmpty()) {
+            details.append("- None\n");
+        } else {
+            for (String upgrade : profile.getUpgrades()) {
+                details.append("- ")
+                    .append(upgrade)
+                    .append(" -> ")
+                    .append(getUpgradeBenefitText(upgrade))
+                    .append("\n");
+            }
+        }
+
+        details.append("\nSponsor Bonus Explanation:\n");
+        details.append(getSponsorBenefitText(profile.getSponsorName()));
+
+        return details.toString();
+    }
+
+    private void updateShopDetailsArea() {
+        if (shopDetailsArea == null || shopTypistComboBox == null) {
+            return;
+        }
+
+        String selectedTypistKey = (String) shopTypistComboBox.getSelectedItem();
+
+        if (selectedTypistKey == null) {
+            shopDetailsArea.setText("No typist selected.");
+            return;
+        }
+
+        SponsorProfile profile = sponsorProfiles.get(selectedTypistKey);
+
+        if (profile == null) {
+            shopDetailsArea.setText("No sponsor profile found for " + selectedTypistKey + ".");
+            return;
+        }
+
+        StringBuilder text = new StringBuilder();
+
+        text.append("Selected Typist: ")
+            .append(profile.getTypistName())
+            .append("\n");
+
+        text.append("Available Coins: ")
+            .append(profile.getTotalEarnings())
+            .append("\n");
+
+        text.append("Current Sponsor: ")
+            .append(profile.getSponsorName())
+            .append("\n");
+
+        text.append("Owned Upgrades: ");
+
+        if (profile.getUpgrades().isEmpty()) {
+            text.append("None");
+        } else {
+            text.append(profile.getUpgrades());
+        }
+
+        shopDetailsArea.setText(text.toString());
+    }
 
     /*  HELPER METHODS 
         All Helper Methods that help the GUI code fonction
@@ -1577,6 +1926,108 @@ public class TypingRaceGUI {
         Most of these Helper Methods are single case use only 
         but some of these are reusable and very important
     */
+
+    private Typist findCurrentTypistByKey(String typistKey) {
+        if (race == null) {
+            return null;
+        }
+
+        for (int i = 0; i < selectedSeatCount; i++) {
+            Typist typist = race.getTypist(i);
+
+            if (typist != null && getTypistPersonalBestKey(typist).equals(typistKey)) {
+                return typist;
+            }
+        }
+
+        return null;
+    }
+
+    private String getSponsorBenefitText(String sponsorName) {
+        if (sponsorName.equals("KeyCorp")) {
+            return "KeyCorp: +50 coins if the typist finishes with 0 burnouts.\n";
+        } else if (sponsorName.equals("Speedify")) {
+            return "Speedify: +60 coins if the typist finishes with 75+ WPM.\n";
+        } else if (sponsorName.equals("CleanType")) {
+            return "CleanType: +50 coins if the typist finishes with 95%+ accuracy.\n";
+        } else if (sponsorName.equals("Comeback Ltd")) {
+            return "Comeback Ltd: +75 coins if the typist finishes top 3 after 3+ burnouts.\n";
+        } else if (sponsorName.equals("Marathon Media")) {
+            return "Marathon Media: +25 coins after each race once the typist has completed 5 races.\n";
+        } else if (sponsorName.equals("Podium Partners")) {
+            return "Podium Partners: +35 coins if the typist finishes in the top 3.\n";
+        } else if (sponsorName.equals("Precision Labs")) {
+            return "Precision Labs: +80 coins if the typist finishes with 99%+ accuracy.\n";
+        } else if (sponsorName.equals("Burnout Recovery Co.")) {
+            return "Burnout Recovery Co.: +70 coins if the typist finishes with 5+ burnouts.\n";
+        } else if (sponsorName.equals("Rookie Boosters")) {
+            return "Rookie Boosters: +40 coins if the typist has fewer than 3 recorded races.\n";
+        } else if (sponsorName.equals("Champion Network")) {
+            return "Champion Network: +90 coins if the typist wins the race.\n";
+        } else if (sponsorName.equals("Underdog Union")) {
+            return "Underdog Union: +65 coins if the typist finishes top 3 with less than 50 WPM.\n";
+        } else if (sponsorName.equals("Consistency Club")) {
+            return "Consistency Club: +45 coins if the typist has at least 3 recorded races.\n";
+        } else if (sponsorName.equals("Flawless Finance")) {
+            return "Flawless Finance: +100 coins if the typist finishes 1st with 0 burnouts.\n";
+        } else if (sponsorName.equals("Personal Best Promotions")) {
+            return "Personal Best Promotions: +85 coins if the typist beats their previous best WPM.\n";
+        }
+
+        return "No sponsor bonus currently assigned.\n";
+    }
+
+    private String getUpgradeBenefitText(String upgrade) {
+        if (upgrade.equals("Lubed Switches")) {
+            return "+" + TIER_ONE_UPGRADE + " speed";
+        } else if (upgrade.equals("Lightweight Keyboard")) {
+            return "+" + TIER_TWO_UPGRADE + " speed";
+        } else if (upgrade.equals("Prototype Neural Keyboard")) {
+            return "+" + TIER_THREE_UPGRADE + " speed";
+        } else if (upgrade.equals("Keycap Grip Tape")) {
+            return "+" + TIER_ONE_UPGRADE + " accuracy";
+        } else if (upgrade.equals("Precision Training Course")) {
+            return "+" + TIER_TWO_UPGRADE + " accuracy";
+        } else if (upgrade.equals("AI Error Prediction System")) {
+            return "+" + TIER_THREE_UPGRADE + " accuracy";
+        } else if (upgrade.equals("Focus Software Lite")) {
+            return "-" + TIER_ONE_UPGRADE + " mistype chance";
+        } else if (upgrade.equals("Adaptive Spell Guard")) {
+            return "-" + TIER_TWO_UPGRADE + " mistype chance";
+        } else if (upgrade.equals("Predictive Anti-Mistype Engine")) {
+            return "-" + TIER_THREE_UPGRADE + " mistype chance";
+        } else if (upgrade.equals("Cooling Wrist Pad")) {
+            return "-" + TIER_ONE_UPGRADE + " burnout chance";
+        } else if (upgrade.equals("Ergonomic Desk Setup")) {
+            return "-" + TIER_TWO_UPGRADE + " burnout chance";
+        } else if (upgrade.equals("Full Performance Recovery Pod")) {
+            return "-" + TIER_THREE_UPGRADE + " burnout chance";
+        } else if (upgrade.equals("Stretching Routine")) {
+            return "-1 burnout duration";
+        } else if (upgrade.equals("Endurance Coaching")) {
+            return "-2 burnout duration";
+        } else if (upgrade.equals("Elite Recovery Programme")) {
+            return "-3 burnout duration";
+        } else if (upgrade.equals("Basic Agent Contract")) {
+            return "+" + (int)(TIER_ONE_UPGRADE * 100) + " coins per race";
+        } else if (upgrade.equals("Professional PR Team")) {
+            return "+" + (int)(TIER_TWO_UPGRADE * 100) + " coins per race";
+        } else if (upgrade.equals("Global Sponsorship Manager")) {
+            return "+" + (int)(TIER_THREE_UPGRADE * 100) + " coins per race";
+        }
+
+        return "No listed upgrade benefit";
+    }
+
+    private List<SponsorProfile> getSponsorProfilesForDisplay() {
+        List<SponsorProfile> profiles = new ArrayList<>(sponsorProfiles.values());
+
+        Collections.sort(profiles, (profileA, profileB) -> {
+            return profileB.getTotalEarnings() - profileA.getTotalEarnings();
+        });
+
+        return profiles;
+    }
 
     private int getSavedTypistIndexByKey(String typistKey) {
         if (savedTypistNames == null) {
@@ -1875,6 +2326,358 @@ public class TypingRaceGUI {
         return profiles;
     }
 
+       /* MODIFIER METHODS
+    
+    These methods have the main modifiers for the game
+    These can be treated as final variables as the only
+    way to change the values inside the game is through
+    these methods
+    
+    Very Important and useful for customisation
+    
+    */  
+
+    private double calculateAccuracyBoost(int index) {
+        double boost = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Touch Typist")) {
+            boost += 0.20;
+        } else if (typingStyle.equals("Hunt & Peck")) {
+            boost -= 0.10;
+        } else if (typingStyle.equals("Phone Thumbs")) {
+            boost -= 0.15;
+        } else if (typingStyle.equals("Voice-to-Text")) {
+            boost += 0.25;
+        }
+
+        if (keyboardType.equals("Mechanical")) {
+            boost += 0.15;
+        } else if (keyboardType.equals("Touchscreen")) {
+            boost -= 0.25;
+        } else if (keyboardType.equals("Stenography")) {
+            boost += 0.40;
+        }
+
+
+        String typistKey = getTypistKey(index);
+        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+
+        if (typistProfile != null) {
+            boost = calculateRankImpact(typistProfile, "Accuracy", boost);
+        }
+
+        SponsorProfile sponsorProfile = sponsorProfiles.get(typistKey);
+
+        if (sponsorProfile != null) {
+            boost = calculateUpgradeImpact(sponsorProfile, "Accuracy", boost);
+        }
+
+        return boost;
+    }
+
+    private boolean checkEnergyDrink (int index) {
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (accessory.equals("Energy Drink")) {
+            return true;
+        }
+        return false;
+    }
+
+    private double calculateSpeedBoost(int index) {
+        double boost = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Phone Thumbs")) {
+            boost += 0.20;
+        }
+
+        if (keyboardType.equals("Mechanical")) {
+            boost -= 0.10;
+        } else if (keyboardType.equals("Touchscreen")) {
+            boost += 0.40;
+        } else if (keyboardType.equals("Stenography")) {
+            boost -= 0.20;
+        }
+
+        String typistKey = getTypistKey(index);
+        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+
+        if (typistProfile != null) {
+            boost = calculateRankImpact(typistProfile, "Speed", boost);
+        }
+
+        SponsorProfile sponsorProfile = sponsorProfiles.get(typistKey);
+
+        if (sponsorProfile != null) {
+            boost = calculateUpgradeImpact(sponsorProfile, "Speed", boost);
+        }
+
+        return boost;
+    }
+
+    private double calculateMistypeModifier(int index) {
+        double boost = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Voice-to-Text")) {
+            boost += 0.25;
+        }
+        if (keyboardType.equals("Touchscreen")) {
+            boost += 0.20;
+        }
+        if (accessory.equals("Noise-Cancelling Headphones")) {
+            boost -= 0.20;
+        }
+
+        String typistKey = getTypistKey(index);
+        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+
+        if (typistProfile != null) {
+            boost = calculateRankImpact(typistProfile, "Mistype", boost);
+        }
+
+        SponsorProfile sponsorProfile = sponsorProfiles.get(typistKey);
+
+        if (sponsorProfile != null) {
+            boost = calculateUpgradeImpact(sponsorProfile, "Mistype", boost);
+        }
+
+        return boost;
+    }
+
+    private double calculateBurnoutModifier(int index) {
+        double modifier = 0.0;
+
+        String typingStyle = (String) typingStyleComboBoxes[index].getSelectedItem();
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+
+        if (typingStyle.equals("Touch Typist")) {
+            modifier += 0.10;
+        } else if (typingStyle.equals("Hunt & Peck")) {
+            modifier -= 0.25;
+        } else if (typingStyle.equals("Voice-to-Text")) {
+            modifier -= 0.10;
+        }
+
+        if (keyboardType.equals("Stenography")) {
+            modifier += 0.15;
+        }
+
+        String typistKey = getTypistKey(index);
+        RewardProfile typistProfile = rewardProfiles.get(typistKey);
+
+        if (typistProfile != null) {
+            modifier = calculateRankImpact(typistProfile, "BurnoutChance", modifier);
+        }
+
+        SponsorProfile sponsorProfile = sponsorProfiles.get(typistKey);
+
+        if (sponsorProfile != null) {
+            modifier = calculateUpgradeImpact(sponsorProfile, "BurnoutChance", modifier);
+        }
+
+        return modifier;
+    }
+
+    private int calculateBurnoutDurationModifier(int index) {
+        int modifier = 0;
+
+        String keyboardType = (String) keyboardTypeComboBoxes[index].getSelectedItem();
+        String accessory = (String) accessoryComboBoxes[index].getSelectedItem();
+
+        if (keyboardType.equals("Stenography")) {
+            modifier += 1;
+        }
+
+        if (accessory.equals("Wrist Support")) {
+            modifier -= 2;
+        }
+
+        String typistKey = getTypistKey(index);
+        SponsorProfile sponsorProfile = sponsorProfiles.get(typistKey);
+
+        if (sponsorProfile != null) {
+            modifier = calculateUpgradeDurationImpact(sponsorProfile, modifier);
+        }
+
+        return modifier;
+    }
+
+    private double calculateRankImpact(RewardProfile profile, String Modifier, double boost ) {
+        if (profile == null) {
+            return boost;
+        }
+
+        if(Modifier.equals("Accuracy")) {
+            if(profile.getTitles().contains("Precision Master")) {
+                boost+= 0.10;
+            }if(profile.getTitles().contains("Flawless Performer")) {
+                boost+= 0.10;
+            }if(profile.getBadges().contains("Underdog Badge")) {
+                boost+= 0.05;
+            }if(profile.getBadges().contains("Clutch Finisher")) {
+                boost+= 0.02;
+            }if(profile.getBadges().contains("First Victory")) {
+                boost+= 0.03;
+            }
+        }else if(Modifier.equals("Speed")) {
+            if(profile.getTitles().contains("Speed Demon")) {
+                boost+= 0.10;
+            }if(profile.getTitles().contains("Marathon Racer")) {
+                boost+= 0.05;
+            }if(profile.getBadges().contains("Podium Finisher")) {
+                boost+= 0.02;
+            }if(profile.getBadges().contains("Personal Best Badge")) {
+                boost+= 0.02;
+            }
+        }else if(Modifier.equals("Mistype")) {
+            if(profile.getTitles().contains("Precision Master")) {
+                boost-= 0.05;
+            }if(profile.getTitles().contains("Flawless Performer")) {
+                boost-= 0.05;
+            }if(profile.getBadges().contains("Clutch Finisher")) {
+                boost-= 0.02;
+            }if(profile.getTitles().contains("Marathon Racer")) {
+                boost-= 0.10;
+            }if(profile.getTitles().contains("Iron Fingers")) {
+                boost-= 0.05;
+            }
+        }else if(Modifier.equals("BurnoutChance")) {
+            if(profile.getTitles().contains("Iron Fingers")) {
+                boost-= 0.10;
+            }if(profile.getTitles().contains("Burnout Master")) {
+                boost-= 0.20;
+            }if(profile.getTitles().contains("Flawless Performer")) {
+                boost-= 0.05;
+            }if(profile.getBadges().contains("No Burnout Badge")) {
+                boost-= 0.05;
+            }if(profile.getBadges().contains("Recovery Badge")) {
+                boost-= 0.05;
+            }
+            
+        }else if(Modifier.equals("RewardPoints")) {
+            if(profile.getTitles().contains("Champion Typist")) {
+                boost+= 5;
+            }if(profile.getTitles().contains("Consistent Racer")) {
+                boost+= 2;
+            }
+        }
+
+        return boost;
+    }
+
+    /*
+        String typistKey = getTypistKey(index);
+        SponsorProfile sponsorProfile = sponsorProfiles.get(typistKey);
+
+        if (sponsorProfile != null) {
+            boost = calculateUpgradeImpact(sponsorProfile, "Speed", boost);
+        }
+
+    */
+
+    private double calculateUpgradeImpact(SponsorProfile profile, String modifier, double boost) {
+        if (profile == null) {
+            return boost;
+        }
+
+        if (modifier.equals("Speed")) {
+            if (profile.getUpgrades().contains("Lubed Switches")) {
+                boost += TIER_ONE_UPGRADE;
+            }
+            if (profile.getUpgrades().contains("Lightweight Keyboard")) {
+                boost += TIER_TWO_UPGRADE;
+            }
+            if (profile.getUpgrades().contains("Prototype Neural Keyboard")) {
+                boost += TIER_THREE_UPGRADE;
+            }
+        } else if (modifier.equals("Accuracy")) {
+            if (profile.getUpgrades().contains("Keycap Grip Tape")) {
+                boost += TIER_ONE_UPGRADE;
+            }
+            if (profile.getUpgrades().contains("Precision Training Course")) {
+                boost += TIER_TWO_UPGRADE;
+            }
+            if (profile.getUpgrades().contains("AI Error Prediction System")) {
+                boost += TIER_THREE_UPGRADE;
+            }
+        } else if (modifier.equals("Mistype")) {
+            if (profile.getUpgrades().contains("Focus Software Lite")) {
+                boost -= TIER_ONE_UPGRADE;
+            }
+            if (profile.getUpgrades().contains("Adaptive Spell Guard")) {
+                boost -= TIER_TWO_UPGRADE;
+            }
+            if (profile.getUpgrades().contains("Predictive Anti-Mistype Engine")) {
+                boost -= TIER_THREE_UPGRADE;
+            }
+        } else if (modifier.equals("BurnoutChance")) {
+            if (profile.getUpgrades().contains("Cooling Wrist Pad")) {
+                boost -= TIER_ONE_UPGRADE;
+            }
+            if (profile.getUpgrades().contains("Ergonomic Desk Setup")) {
+                boost -= TIER_TWO_UPGRADE;
+            }
+            if (profile.getUpgrades().contains("Full Performance Recovery Pod")) {
+                boost -= TIER_THREE_UPGRADE;
+            }
+        }else if(modifier.equals("Money")) {
+            if (profile.getUpgrades().contains("Basic Agent Contract")) {
+                boost += (int)(TIER_ONE_UPGRADE * 100);
+            }
+
+            if (profile.getUpgrades().contains("Professional PR Team")) {
+                boost += (int)(TIER_TWO_UPGRADE * 100);
+            }
+
+            if (profile.getUpgrades().contains("Global Sponsorship Manager")) {
+                boost += (int)(TIER_THREE_UPGRADE * 100);
+            }
+        }
+
+        return boost;
+    }
+
+    private int calculateUpgradeDurationImpact(SponsorProfile profile, int modifier) {
+        if (profile == null) {
+            return modifier;
+        }
+
+        if (profile.getUpgrades().contains("Stretching Routine")) {
+            modifier -= 1;
+        }
+
+        if (profile.getUpgrades().contains("Endurance Coaching")) {
+            modifier -= 2;
+        }
+
+        if (profile.getUpgrades().contains("Elite Recovery Programme")) {
+            modifier -= 3;
+        }
+        
+        return modifier;
+    }
+   
+
+    
+    /* LOGICAL FRAMEWORK
+    
+    This is where most of the logical framework methods
+    are placed so it is more convenient to access
+    These mainly include calculations and/or things 
+    that provide information to the GUI but aren't GUI
+    themselves 
+
+    */
 
     private void updateRewardSystemAfterRace() {
 
@@ -1936,6 +2739,14 @@ public class TypingRaceGUI {
         
     }
 
+    private void ensureSponsorProfileExists(String typistKey, String displayName) {
+        if (!sponsorProfiles.containsKey(typistKey)) {
+            SponsorProfile profile = new SponsorProfile(displayName);
+            profile.setSponsorName(assignDefaultSponsor(displayName));
+            sponsorProfiles.put(typistKey, profile);
+        }
+    }
+
     private void assignRewardTitle(RewardProfile profile, Typist typist) {
         List <RaceHistoryRecord> history = getRaceHistory(typist);
 
@@ -1965,7 +2776,7 @@ public class TypingRaceGUI {
             profile.setTitle("Champion Typist");
         }if (totalRaces >= 10 && !profile.getTitles().contains("Marathon Racer")) {
             profile.setTitle("Marathon Racer");
-        }if (position >= 1 && !profile.getTitles().contains("Flawless Performer") && history.get(history.size()-1).getBurnoutCount() == 0) {
+        }if (position == 1 && !profile.getTitles().contains("Flawless Performer") && history.get(history.size()-1).getBurnoutCount() == 0) {
             profile.setTitle("Flawless Performer");
         }if (totalBurnouts >= 100 && !profile.getTitles().contains("Burnout Master")) {
             profile.setTitle("Burnout Master");
@@ -1988,7 +2799,7 @@ public class TypingRaceGUI {
                 podiumFinishes += 1;
             }
 
-            if (record.getBurnoutCount() >= 7 && position <= 3) {
+            if (record.getBurnoutCount() >= 7 && record.getPosition() <= 3) {
                 recoveryRaces += 1;
             }
         }
@@ -2005,72 +2816,288 @@ public class TypingRaceGUI {
             profile.setBadges("Podium Finisher");
         } if (recoveryRaces >= 1 && !profile.getBadges().contains("Recovery Badge") && selectedSeatCount > 3) {
             profile.setBadges("Recovery Badge");
-        } if (totalRaces >= 2 && bestWPM >= history.get(history.size() - 1).getWpm() && !profile.getBadges().contains("Personal Best Badge")) {
+        } if (totalRaces >= 2 && bestWPM <= history.get(history.size() - 1).getWpm() && !profile.getBadges().contains("Personal Best Badge")) {
             profile.setBadges("Personal Best Badge");
         }
     }
 
-    private double calculateRankImpact(RewardProfile profile, String Modifier, double boost ) {
+    private String assignDefaultSponsor(String displayName) {
+        int randomSponsor = (int) (Math.random() * 14);
+
+        if(randomSponsor == 0) {
+            return "KeyCorp";
+        }else if(randomSponsor == 1) {
+            return "Speedify";
+        } else if(randomSponsor == 2) {
+            return "CleanType";
+        } else if(randomSponsor == 3) {
+            return "Comeback Ltd";
+        } else if(randomSponsor == 4) {
+            return "Marathon Media";
+        } else if(randomSponsor == 5) {
+            return "Podium Partners";
+        } else if(randomSponsor == 6) {
+            return "Precision Labs";
+        } else if(randomSponsor == 7) {
+            return "Burnout Recovery Co.";
+        } else if(randomSponsor == 8) {
+            return "Rookie Boosters";
+        } else if(randomSponsor == 9) {
+            return "Champion Network";
+        } else if(randomSponsor == 10) {
+            return "Underdog Union";
+        } else if(randomSponsor == 11) {
+            return "Consistency Club";
+        } else if(randomSponsor == 12) {
+            return "Flawless Finance";
+        } else if(randomSponsor == 13) {
+            return "Personal Best Promotions";
+        }
+
+        return "No Sponsor";
+    }
+
+    private int calculatePrizeMoney(int position, double wpm, int burnoutCount) {
+        int prizeMoney;
+        int positionMoney = 100/4 * (6 - position) - 25;
+        int wpmMoney = (int) (wpm/20 * 10);
+
+        if(positionMoney < 0) {
+            positionMoney = 0;
+        }
+
+        prizeMoney = positionMoney + wpmMoney - burnoutCount *5;
+
+        if (prizeMoney < 0) {
+            prizeMoney = 0;
+        }
+        return prizeMoney;
+    }
+
+    private int calculateSponsorBonus(SponsorProfile profile, List<RaceHistoryRecord> raceHistory) {
+        String sponsorName = profile.getSponsorName();
+
+        if (raceHistory == null || raceHistory.isEmpty()) {
+            return 0;
+        }
+
+        RaceHistoryRecord latestRace = raceHistory.get(raceHistory.size() - 1);
+
+        if (sponsorName.equals("KeyCorp")) {
+            if (latestRace.getBurnoutCount() == 0) {
+                return 50;
+            }
+        } else if (sponsorName.equals("Speedify")) {
+            if (latestRace.getWpm() >= 75) {
+                return 60;
+            }
+        } else if (sponsorName.equals("CleanType")) {
+            if (latestRace.getAccuracyPercentage() >= 95) {
+                return 50;
+            }
+        } else if (sponsorName.equals("Comeback Ltd")) {
+            if (latestRace.getPosition() <= 3 && latestRace.getBurnoutCount() >= 3) {
+                return 75;
+            }
+        } else if (sponsorName.equals("Marathon Media")) {
+            if (raceHistory.size() >= 5) {
+                return 25;
+            }
+        } else if (sponsorName.equals("Podium Partners")) {
+            if (latestRace.getPosition() <= 3) {
+                return 35;
+            }
+        } else if (sponsorName.equals("Precision Labs")) {
+            if (latestRace.getAccuracyPercentage() >= 99) {
+                return 80;
+            }
+        } else if (sponsorName.equals("Burnout Recovery Co.")) {
+            if (latestRace.getBurnoutCount() >= 5) {
+                return 70;
+            }
+        } else if (sponsorName.equals("Rookie Boosters")) {
+            if (raceHistory.size() < 3) {
+                return 40;
+            }
+        } else if (sponsorName.equals("Champion Network")) {
+            if (latestRace.getPosition() == 1) {
+                return 90;
+            }
+        } else if (sponsorName.equals("Underdog Union")) {
+            if (latestRace.getPosition() <= 3 && latestRace.getWpm() < 50) {
+                return 65;
+            }
+        } else if (sponsorName.equals("Consistency Club")) {
+            if (raceHistory.size() >= 3) {
+                return 45;
+            }
+        } else if (sponsorName.equals("Flawless Finance")) {
+            if (latestRace.getPosition() == 1 && latestRace.getBurnoutCount() == 0) {
+                return 100;
+            }
+        } else if (sponsorName.equals("Personal Best Promotions")) {
+            double latestWPM = latestRace.getWpm();
+
+            boolean isPersonalBest = true;
+
+            for (int i = 0; i < raceHistory.size() - 1; i++) {
+                if (raceHistory.get(i).getWpm() >= latestWPM) {
+                    isPersonalBest = false;
+                }
+            }
+
+            if (isPersonalBest && raceHistory.size() >= 2) {
+                return 85;
+            }
+        }
+
+        return 0;
+    }
+
+    private int getUpgradeCost(String item) {
+        if (item.equals("Lubed Switches")) {
+            return LOW_ITEM_PRICE;
+        } else if (item.equals("Lightweight Keyboard")) {
+            return MID_ITEM_PRICE;
+        } else if (item.equals("Prototype Neural Keyboard")) {
+            return HIGH_ITEM_PRICE;
+        } else if (item.equals("Keycap Grip Tape")) {
+            return LOW_ITEM_PRICE;
+        } else if (item.equals("Precision Training Course")) {
+            return MID_ITEM_PRICE;
+        } else if (item.equals("AI Error Prediction System")) {
+            return HIGH_ITEM_PRICE;
+        } else if (item.equals("Focus Software Lite")) {
+            return LOW_ITEM_PRICE;
+        } else if (item.equals("Adaptive Spell Guard")) {
+            return MID_ITEM_PRICE;
+        } else if (item.equals("Predictive Anti-Mistype Engine")) {
+            return HIGH_ITEM_PRICE;
+        } else if (item.equals("Cooling Wrist Pad")) {
+            return LOW_ITEM_PRICE;
+        } else if (item.equals("Ergonomic Desk Setup")) {
+            return MID_ITEM_PRICE;
+        } else if (item.equals("Full Performance Recovery Pod")) {
+            return HIGH_ITEM_PRICE;
+        } else if (item.equals("Stretching Routine")) {
+            return LOW_ITEM_PRICE;
+        } else if (item.equals("Endurance Coaching")) {
+            return MID_ITEM_PRICE;
+        } else if (item.equals("Elite Recovery Programme")) {
+            return HIGH_ITEM_PRICE;
+        } else if (item.equals("Basic Agent Contract")) {
+            return LOW_ITEM_PRICE;
+        } else if (item.equals("Professional PR Team")) {
+            return MID_ITEM_PRICE;
+        } else if (item.equals("Global Sponsorship Manager")) {
+            return HIGH_ITEM_PRICE;
+        }
+
+        return -1;
+    }
+
+    private void applyUpgradeEffectToTypist(Typist typist, String item) {
+        if (item.equals("Lubed Switches")) {
+            typist.setSpeed(typist.getSpeed() + TIER_ONE_UPGRADE);
+        } else if (item.equals("Lightweight Keyboard")) {
+            typist.setSpeed(typist.getSpeed() + TIER_TWO_UPGRADE);
+        } else if (item.equals("Prototype Neural Keyboard")) {
+            typist.setSpeed(typist.getSpeed() + TIER_THREE_UPGRADE);
+        } else if (item.equals("Keycap Grip Tape")) {
+            typist.setAccuracy(typist.getAccuracy() + TIER_ONE_UPGRADE);
+        } else if (item.equals("Precision Training Course")) {
+            typist.setAccuracy(typist.getAccuracy() + TIER_TWO_UPGRADE);
+        } else if (item.equals("AI Error Prediction System")) {
+            typist.setAccuracy(typist.getAccuracy() + TIER_THREE_UPGRADE);
+        } else if (item.equals("Focus Software Lite")) {
+            typist.setMistypeChanceModifier(typist.getMistypeChanceModifier() - TIER_ONE_UPGRADE);
+        } else if (item.equals("Adaptive Spell Guard")) {
+            typist.setMistypeChanceModifier(typist.getMistypeChanceModifier() - TIER_TWO_UPGRADE);
+        } else if (item.equals("Predictive Anti-Mistype Engine")) {
+            typist.setMistypeChanceModifier(typist.getMistypeChanceModifier() - TIER_THREE_UPGRADE);
+        } else if (item.equals("Cooling Wrist Pad")) {
+            typist.setBurnoutChanceModifier(typist.getBurnoutChanceModifier() - TIER_ONE_UPGRADE);
+        } else if (item.equals("Ergonomic Desk Setup")) {
+            typist.setBurnoutChanceModifier(typist.getBurnoutChanceModifier() - TIER_TWO_UPGRADE);
+        } else if (item.equals("Full Performance Recovery Pod")) {
+            typist.setBurnoutChanceModifier(typist.getBurnoutChanceModifier() - TIER_THREE_UPGRADE);
+        } else if (item.equals("Stretching Routine")) {
+            typist.setBurnoutDurationAdjustment(typist.getBurnoutDurationAdjustment() - 1);
+        } else if (item.equals("Endurance Coaching")) {
+            typist.setBurnoutDurationAdjustment(typist.getBurnoutDurationAdjustment() - 2);
+        } else if (item.equals("Elite Recovery Programme")) {
+            typist.setBurnoutDurationAdjustment(typist.getBurnoutDurationAdjustment() - 3);
+        }
+    }
+
+    private void applyPurchasedUpgrades(Typist typist, String item) {
+        if (typist == null) {
+            JOptionPane.showMessageDialog(frame, "No typist selected.");
+            return;
+        }
+
+        String typistKey = getTypistPersonalBestKey(typist);
+        SponsorProfile profile = sponsorProfiles.get(typistKey);
+
         if (profile == null) {
-            return boost;
+            JOptionPane.showMessageDialog(frame, "No sponsor profile found for " + typist.getName() + ".");
+            return;
         }
 
-        if(Modifier.equals("Accuracy")) {
-            if(profile.getTitles().contains("Precision Master")) {
-                boost+= 0.10;
-            }if(profile.getTitles().contains("Flawless Performer")) {
-                boost+= 0.10;
-            }if(profile.getBadges().contains("Underdog Badge")) {
-                boost+= 0.05;
-            }if(profile.getBadges().contains("Clutch Finisher")) {
-                boost+= 0.02;
-            }if(profile.getBadges().contains("First Victory")) {
-                boost+= 0.03;
-            }
-        }else if(Modifier.equals("Speed")) {
-            if(profile.getTitles().contains("Speed Demon")) {
-                boost+= 0.10;
-            }if(profile.getTitles().contains("Marathon Typist")) {
-                boost+= 0.05;
-            }if(profile.getBadges().contains("Podium Finisher")) {
-                boost+= 0.02;
-            }if(profile.getBadges().contains("Personal Best")) {
-                boost+= 0.02;
-            }
-        }else if(Modifier.equals("Mistype")) {
-            if(profile.getTitles().contains("Precision Master")) {
-                boost-= 0.05;
-            }if(profile.getTitles().contains("Flawless Performer")) {
-                boost-= 0.05;
-            }if(profile.getBadges().contains("Clutch Finisher")) {
-                boost-= 0.02;
-            }if(profile.getTitles().contains("Marathon Typist")) {
-                boost-= 0.10;
-            }if(profile.getTitles().contains("Iron Fingers")) {
-                boost-= 0.05;
-            }
-        }else if(Modifier.equals("BurnoutChance")) {
-            if(profile.getTitles().contains("Iron Fingers")) {
-                boost-= 0.10;
-            }if(profile.getBadges().contains("Burnout Master")) {
-                boost-= 0.20;
-            }if(profile.getTitles().contains("Flawless Performer")) {
-                boost-= 0.05;
-            }if(profile.getBadges().contains("No Burnout Badge")) {
-                boost-= 0.05;
-            }if(profile.getBadges().contains("Recovery Badge")) {
-                boost-= 0.05;
-            }
+        int cost = getUpgradeCost(item);
+
+        if (cost == -1) {
+            JOptionPane.showMessageDialog(frame, "Unknown upgrade: " + item);
+            return;
+        }
+
+        if (profile.getUpgrades().contains(item)) {
+            JOptionPane.showMessageDialog(frame, typist.getName() + " already owns " + item + ".");
+            return;
+        }
+
+        if (profile.getTotalEarnings() < cost) {
+            JOptionPane.showMessageDialog(
+                frame,
+                typist.getName() + " does not have enough coins.\n" +
+                "Cost: " + cost + " coins\n" +
+                "Available: " + profile.getTotalEarnings() + " coins"
+            );
+            return;
+        }
+
+    profile.setTotalEarnings(profile.getTotalEarnings() - cost);
+    profile.addUpgrade(item);
+
+    applyUpgradeEffectToTypist(typist, item);
+
+    JOptionPane.showMessageDialog(
+        frame,
+        typist.getName() + " bought " + item + " for " + cost + " coins."
+    );
+}
+
+    private void updateSponsorSystemAfterRace() {
+        for(int i = 0; i < selectedSeatCount; i++) {
+            Typist typist = race.getTypist(i);
+            String typistKey = getTypistPersonalBestKey(typist);
+            String typistDisplay = typist.getName();
+
+            ensureSponsorProfileExists(typistKey, typistDisplay);
+            SponsorProfile typistProfile = sponsorProfiles.get(typistKey);
+
+            RaceHistoryRecord typistHistory = getRaceHistory(typist).get(getRaceHistory(typist).size() - 1);
+            double wpm = typistHistory.getWpm();
+
+            int burnoutCount = typistHistory.getBurnoutCount();
+            int position = typistHistory.getPosition();
+
             
-        }else if(Modifier.equals("RewardPoints")) {
-            if(profile.getTitles().contains("Champion Typist")) {
-                boost+= 5;
-            }if(profile.getTitles().contains("Consistent Racer")) {
-                boost+= 2;
-            }
-        }
+            int latestPrize = calculatePrizeMoney(position, wpm,burnoutCount) + calculateSponsorBonus(typistProfile, getRaceHistory(typist)) + (int) (calculateUpgradeImpact(typistProfile, "Money", 0.00));
 
-        return boost;
+            typistProfile.setLatestEarnings(latestPrize);
+            typistProfile.setTotalEarnings(typistProfile.getTotalEarnings()+typistProfile.getLatestEarnings());
+        }
     }
 
     public void startRaceGUI() {
