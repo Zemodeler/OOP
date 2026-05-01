@@ -229,8 +229,8 @@ public class TypingRace
         System.out.print(theTypist.getSymbol());
         if (theTypist.isBurntOut())
         {
-            System.out.print('~');
-            spacesAfter--; // symbol + ~ together take two characters
+            System.out.print("zz");
+            spacesAfter-= 2 ; // symbol + zz together take two characters
         }
 
         multiplePrint(' ', spacesAfter);
