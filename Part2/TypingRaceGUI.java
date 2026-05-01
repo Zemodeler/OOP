@@ -7,7 +7,7 @@
  * @version 1.0
  */
 
-package Part2;
+
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
